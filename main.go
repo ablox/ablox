@@ -11,6 +11,8 @@ import (
 	"os"
 	"bufio"
     "encoding/binary"
+    "bytes"
+    "reflect"
 )
 
 const (
@@ -51,30 +53,65 @@ func main() {
 	conn, err := net.Dial("tcp", tcpAddr.String())
 	errorCheck(err)
 
-	fmt.Println("We are connectd to: %s", tcpAddr.String())
+	fmt.Println("We are connectd to: %s\n", tcpAddr.String())
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 
     data := make([]byte, 1000)
-    request := createRequest()
+
+    //request := createRequest()
 
     count, err := reader.Read(data)
     errorCheck(err)
     logData("A", count, data)
 
-    data = make([]byte, 1000)
-    request.reqtype = 3
-    request.encodeRequest(data)
+    fmt.Printf("%s", reflect.TypeOf(NBD_REQUEST_MAGIC))
 
-    newline := make([]byte, 1)
-    newline[0] = byte('\n')
-    writer.Write(newline)
-    writer.Write(data[0:32])
-    writer.Flush()
+    //data = make([]byte, 1000)
+    //request.reqtype = 3
+    //request.encodeRequest(data)
+
+    //newline := make([]byte, 1)
+    //newline[0] = byte('\n')
+    //writer.Write(newline)
+    //writer.Write(data[0:32])
+    //writer.Flush()
 
     count, err = reader.Read(data)
     errorCheck(err)
     logData("B", count, data)
+
+    tempData := make([]byte, 4)
+    //outputBuffer := bytes.NewBufferString("NBDMAGIC")
+    outputBuffer := new(bytes.Buffer)
+    binary.BigEndian.PutUint32(tempData, NBD_REPLY_MAGIC)  // request list
+    outputBuffer.Write(tempData)
+    logBuffer("senda", outputBuffer)
+
+    binary.BigEndian.PutUint32(tempData, 3)  // request list
+    outputBuffer.Write(tempData)
+    logBuffer("sendb", outputBuffer)
+
+    binary.BigEndian.PutUint32(tempData, 0)  // length
+    outputBuffer.Write(tempData)
+    logBuffer("sendc", outputBuffer)
+
+    outputBuffer.WriteByte('\n')
+    logBuffer("sendd", outputBuffer)
+
+    count, err = writer.Write(outputBuffer.Bytes())
+    writer.Flush()
+    errorCheck(err)
+
+    count, err = reader.Read(data)
+    errorCheck(err)
+    logData("B", count, data)
+
+    fmt.Printf("Gack")
+    count, err = reader.Read(data)
+    errorCheck(err)
+    logData("B", count, data)
+    fmt.Printf("Gack2")
 
     os.Exit(0)
 
@@ -82,6 +119,10 @@ func main() {
 	http.HandleFunc("/", receive)
 	http.HandleFunc("/start", start)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+}
+
+func logBuffer(msg string, buffer *bytes.Buffer) {
+    fmt.Printf("%5s (count %3d) Data: '%s' (%v)\n", msg, buffer.Len(), string(buffer.Bytes()), buffer.Bytes())
 }
 
 func logData(msg string, count int, data []byte) {
