@@ -13,6 +13,7 @@ import (
     "encoding/binary"
     "bytes"
     "reflect"
+    "./utils"
 )
 
 const (
@@ -49,9 +50,9 @@ func (r NBDRequest) encodeRequest(data []byte){
 
 func main() {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "jacobu.local:8000")
-	errorCheck(err)
+	utils.ErrorCheck(err)
 	conn, err := net.Dial("tcp", tcpAddr.String())
-	errorCheck(err)
+	utils.ErrorCheck(err)
 
 	fmt.Println("We are connectd to: %s\n", tcpAddr.String())
 	reader := bufio.NewReader(conn)
@@ -62,7 +63,7 @@ func main() {
     //request := createRequest()
 
     count, err := reader.Read(data)
-    errorCheck(err)
+    utils.ErrorCheck(err)
     logData("A", count, data)
 
     fmt.Printf("%s", reflect.TypeOf(NBD_REQUEST_MAGIC))
@@ -78,7 +79,7 @@ func main() {
     //writer.Flush()
 
     count, err = reader.Read(data)
-    errorCheck(err)
+    utils.ErrorCheck(err)
     logData("B", count, data)
 
     tempData := make([]byte, 4)
@@ -101,15 +102,15 @@ func main() {
 
     count, err = writer.Write(outputBuffer.Bytes())
     writer.Flush()
-    errorCheck(err)
+    utils.ErrorCheck(err)
 
     count, err = reader.Read(data)
-    errorCheck(err)
+    utils.ErrorCheck(err)
     logData("B", count, data)
 
     fmt.Printf("Gack")
     count, err = reader.Read(data)
-    errorCheck(err)
+    utils.ErrorCheck(err)
     logData("B", count, data)
     fmt.Printf("Gack2")
 
@@ -129,12 +130,7 @@ func logData(msg string, count int, data []byte) {
     fmt.Printf("%5s (count %3d) Data: '%s' (%v)\n", msg, count, string(data[0:count]), data[0:count])
 }
 
-func errorCheck(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encountered: %v", err)
-		os.Exit(0)
-	}
-}
+
 
 func receive(w http.ResponseWriter, r *http.Request) {
 
