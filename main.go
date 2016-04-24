@@ -16,11 +16,6 @@ import (
     "./utils"
 )
 
-const (
-    NBD_REQUEST_MAGIC = 0x25609513
-    NBD_REPLY_MAGIC = 0x67446698
-)
-
 type NBDRequest struct {
     magic       uint32
     reqtype     uint32
@@ -31,7 +26,7 @@ type NBDRequest struct {
 
 func createRequest() NBDRequest {
     var request NBDRequest
-    request.magic = NBD_REQUEST_MAGIC
+    request.magic = utils.NBD_REQUEST_MAGIC
     request.reqtype = 0
     request.from = 0
     request.handle = 0
@@ -64,54 +59,68 @@ func main() {
 
     count, err := reader.Read(data)
     utils.ErrorCheck(err)
-    logData("A", count, data)
+    utils.LogData("A", count, data)
 
-    fmt.Printf("%s", reflect.TypeOf(NBD_REQUEST_MAGIC))
+    fmt.Printf("%s\n", reflect.TypeOf(utils.NBD_REQUEST_MAGIC))
 
     //data = make([]byte, 1000)
     //request.reqtype = 3
     //request.encodeRequest(data)
 
-    //newline := make([]byte, 1)
-    //newline[0] = byte('\n')
-    //writer.Write(newline)
+    newline := make([]byte, 1)
+    newline[0] = byte('\n')
+    writer.Write(newline)
     //writer.Write(data[0:32])
     //writer.Flush()
 
     count, err = reader.Read(data)
     utils.ErrorCheck(err)
-    logData("B", count, data)
+    utils.LogData("B", count, data)
 
-    tempData := make([]byte, 4)
-    //outputBuffer := bytes.NewBufferString("NBDMAGIC")
-    outputBuffer := new(bytes.Buffer)
-    binary.BigEndian.PutUint32(tempData, NBD_REPLY_MAGIC)  // request list
-    outputBuffer.Write(tempData)
-    logBuffer("senda", outputBuffer)
+    //count, err = reader.Read(data)
+    //utils.ErrorCheck(err)
+    //utils.LogData("C", count, data)
 
-    binary.BigEndian.PutUint32(tempData, 3)  // request list
-    outputBuffer.Write(tempData)
-    logBuffer("sendb", outputBuffer)
+    //tempData := make([]byte, 4)
+    ////outputBuffer := bytes.NewBufferString("NBDMAGIC")
+    //outputBuffer := new(bytes.Buffer)
+    //binary.BigEndian.PutUint32(tempData, NBD_REPLY_MAGIC)  // request list
+    //outputBuffer.Write(tempData)
+    //logBuffer("senda", outputBuffer)
+    //
+    //binary.BigEndian.PutUint32(tempData, 3)  // request list
+    //outputBuffer.Write(tempData)
+    //logBuffer("sendb", outputBuffer)
+    //
+    //binary.BigEndian.PutUint32(tempData, 0)  // length
+    //outputBuffer.Write(tempData)
+    //logBuffer("sendc", outputBuffer)
+    //
+    //outputBuffer.WriteByte('\n')
+    //logBuffer("sendd", outputBuffer)
+    //
+    //count, err = writer.Write(outputBuffer.Bytes())
+    //writer.Flush()
+    //utils.ErrorCheck(err)
 
-    binary.BigEndian.PutUint32(tempData, 0)  // length
-    outputBuffer.Write(tempData)
-    logBuffer("sendc", outputBuffer)
+    //count, err = reader.Read(data)
+    //utils.ErrorCheck(err)
+    //utils.LogData("B", count, data)
 
-    outputBuffer.WriteByte('\n')
-    logBuffer("sendd", outputBuffer)
-
-    count, err = writer.Write(outputBuffer.Bytes())
+    // send out options and the request for a list
+    count, err = writer.Write([]byte{0, 0, 0, 3, 73, 72, 65, 86, 69, 79, 80, 84})
+    utils.ErrorCheck(err)
+    count, err = writer.Write([]byte{0, 0, 0, 3})
     writer.Flush()
     utils.ErrorCheck(err)
-
-    count, err = reader.Read(data)
+    count, err = writer.Write(newline)
+    writer.Flush()
     utils.ErrorCheck(err)
-    logData("B", count, data)
 
     fmt.Printf("Gack")
     count, err = reader.Read(data)
     utils.ErrorCheck(err)
-    logData("B", count, data)
+    utils.LogData("B", count, data)
     fmt.Printf("Gack2")
 
     os.Exit(0)
@@ -125,12 +134,6 @@ func main() {
 func logBuffer(msg string, buffer *bytes.Buffer) {
     fmt.Printf("%5s (count %3d) Data: '%s' (%v)\n", msg, buffer.Len(), string(buffer.Bytes()), buffer.Bytes())
 }
-
-func logData(msg string, count int, data []byte) {
-    fmt.Printf("%5s (count %3d) Data: '%s' (%v)\n", msg, count, string(data[0:count]), data[0:count])
-}
-
-
 
 func receive(w http.ResponseWriter, r *http.Request) {
 
