@@ -10,6 +10,42 @@ import (
     "encoding/binary"
 )
 
+
+func send_export_list_item(output *bufio.Writer, export_name string) {
+    data := make([]byte, 1024)
+    length := len(export_name)
+    offset := 0
+
+    // length of export name
+    binary.BigEndian.PutUint32(data[offset:], uint32(length))  // length of string
+    offset += 4
+
+    // export name
+    copy(data[offset:], export_name)
+    offset += length
+
+    reply_type := uint32(2)     // reply_type: NBD_REP_SERVER
+    send_message(output, reply_type, uint32(offset), data)
+}
+
+func send_ack(output *bufio.Writer) {
+    // Send acknowledgement that the list is done.
+    reply_type := uint32(1)      // reply_type: NBD_REP_ACK
+    data := make([]byte, 1024)
+    send_message(output, reply_type, 0, data)
+}
+
+func send_export_list(output *bufio.Writer) {
+    export_name_list := []string{"happy_export", "very_happy_export", "third_export"}
+
+    for index := range export_name_list {
+        send_export_list_item(output, export_name_list[index])
+    }
+
+    send_ack(output)
+
+}
+
 func send_message(output *bufio.Writer, reply_type uint32, length uint32, data []byte ) {
     endian := binary.BigEndian
     buffer := make([]byte, 1024)
@@ -28,11 +64,8 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
     endian.PutUint32(buffer[offset:], length)  // length of string
     offset += 4
 
-    fmt.Printf("offset is: %4d  length is: %4d\n", offset, length)
-    //if length > 0 {
-        copy(buffer[offset:], data[0:length])
-        offset += int(length)
-    //}
+    copy(buffer[offset:], data[0:length])
+    offset += int(length)
 
     data_to_send := buffer[:offset]
     output.Write(data_to_send)
@@ -59,13 +92,11 @@ func main() {
         output := bufio.NewWriter(conn)
 
         output.WriteString("NBDMAGIC")      // init password
-        //output.Write(reply_magic)
         output.Flush()
         output.WriteString("IHAVEOPT")      // Magic
         output.Flush()
         output.Write([]byte{0, 3})          // Flags (3 = supports list)
         output.Flush()
-        //output.WriteString("\n")
 
         data := make([]byte, 1024)
         length, err := conn.Read(data)
@@ -77,62 +108,7 @@ func main() {
         utils.ErrorCheck(err)
         utils.LogData("B", length, data)
 
-        // Send the first export
-        endian := binary.BigEndian
-        data = make([]byte, 1024)
-        export_name := "happy_export"
-        length = len(export_name)
-
-        offset := 0
-
-        //// length of export name package
-        //endian.PutUint32(data[offset:], uint32(length + 4))  // length of all data (string + size)
-        //offset += 4
-
-        // length of export name
-        endian.PutUint32(data[offset:], uint32(length))  // length of string
-        offset += 4
-
-        // export name
-        copy(data[offset:], export_name)
-        offset += length
-
-        reply_type := uint32(2)     // reply_type: NBD_REP_SERVER
-        utils.LogData("Calling send_message with:", offset, data)
-        send_message(output, reply_type, uint32(offset), data)
-
-
-
-        // Send the second export
-        data = make([]byte, 1024)
-        export_name = "Very_happy_export"
-        length = len(export_name)
-        offset = 0
-
-        // length of export name
-        endian.PutUint32(data[offset:], uint32(length))  // length of string
-        offset += 4
-
-        // export name
-        copy(data[offset:], export_name)
-        offset += length
-
-        reply_type = uint32(2)     // reply_type: NBD_REP_SERVER
-        utils.LogData("Calling send_message with:", offset, data)
-        send_message(output, reply_type, uint32(offset), data)
-
-
-
-
-
-
-
-        // Send acknowledgement that the list is done.
-
-        reply_type = uint32(1)      // reply_type: NBD_REP_ACK
-
-        data = make([]byte, 1024)
-        send_message(output, reply_type, 0, data)
+        send_export_list(output)
 
         input := bufio.NewScanner(conn)
         for input.Scan() {
