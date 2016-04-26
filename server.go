@@ -30,10 +30,7 @@ func send_export_list_item(output *bufio.Writer, export_name string) {
 }
 
 func send_ack(output *bufio.Writer) {
-    // Send acknowledgement that the list is done.
-    //reply_type := utils.NBD_COMMAND_ACK
-    data := make([]byte, 1024)
-    send_message(output, utils.NBD_COMMAND_ACK, 0, data)
+    send_message(output, utils.NBD_COMMAND_ACK, 0, nil)
 }
 
 func export_name(output *bufio.Writer, payload_size int, payload []byte) {
@@ -65,12 +62,13 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
     endian.PutUint32(buffer[offset:], reply_type)  // reply_type: NBD_REP_SERVER
     offset += 4
 
-    // length of export name package
-    endian.PutUint32(buffer[offset:], length)  // length of string
+    endian.PutUint32(buffer[offset:], length)  // length of package
     offset += 4
 
-    copy(buffer[offset:], data[0:length])
-    offset += int(length)
+    if data != nil {
+        copy(buffer[offset:], data[0:length])
+        offset += int(length)
+    }
 
     data_to_send := buffer[:offset]
     output.Write(data_to_send)
@@ -162,7 +160,6 @@ func main() {
                     break
                 }
             }
-            //fmt.Printf("Error is: %+v", input.Err())
             fmt.Printf("%s echo: %s '%v'\n", conn.RemoteAddr().String(), input.Text(), input.Bytes())
         }
         conn.Close()
