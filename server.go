@@ -8,6 +8,7 @@ import (
     "./utils"
     "bufio"
     "encoding/binary"
+    "time"
 )
 
 
@@ -30,9 +31,13 @@ func send_export_list_item(output *bufio.Writer, export_name string) {
 
 func send_ack(output *bufio.Writer) {
     // Send acknowledgement that the list is done.
-    reply_type := uint32(1)      // reply_type: NBD_REP_ACK
+    //reply_type := utils.NBD_COMMAND_ACK
     data := make([]byte, 1024)
-    send_message(output, reply_type, 0, data)
+    send_message(output, utils.NBD_COMMAND_ACK, 0, data)
+}
+
+func export_name(output *bufio.Writer, payload_size int, payload []byte) {
+    fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
 }
 
 func send_export_list(output *bufio.Writer) {
@@ -88,7 +93,7 @@ func main() {
         conn, err := listener.Accept()
         utils.ErrorCheck(err)
 
-        fmt.Printf("We have a new connection from: %s", conn.RemoteAddr())
+        fmt.Printf("We have a new connection from: %s\n", conn.RemoteAddr())
         output := bufio.NewWriter(conn)
 
         output.WriteString("NBDMAGIC")      // init password
@@ -98,17 +103,54 @@ func main() {
         output.Write([]byte{0, 3})          // Flags (3 = supports list)
         output.Flush()
 
+        // Fetch the data until we get the initial options
         data := make([]byte, 1024)
-        length, err := conn.Read(data)
-        utils.ErrorCheck(err)
-        utils.LogData("A", length, data)
+        offset := 0
+        waiting_for := 16       // wait for at least the minimum payload size
 
-        data = make([]byte, 1024)
-        length, err = conn.Read(data)
-        utils.ErrorCheck(err)
-        utils.LogData("B", length, data)
+        for offset < waiting_for {
+            length, err := conn.Read(data[offset:])
+            offset += length
+            utils.ErrorCheck(err)
+            utils.LogData("Reading instruction", offset, data)
+            if offset < waiting_for {
+                time.Sleep(5 * time.Millisecond)
+            }
+        }
 
-        send_export_list(output)
+        // Skip the first 8 characters (options)
+        command := binary.BigEndian.Uint32(data[12:])
+        payload_size := int(binary.BigEndian.Uint32(data[16:]))
+
+        fmt.Sprintf("command is: %d\npayload_size is: %d\n", command, payload_size)
+        waiting_for += int(payload_size)
+        for offset < waiting_for {
+            length, err := conn.Read(data[offset:])
+            offset += length
+            utils.ErrorCheck(err)
+            utils.LogData("Reading instruction", offset, data)
+            if offset < waiting_for {
+                time.Sleep(5 * time.Millisecond)
+            }
+        }
+        payload := make([]byte, payload_size)
+
+        if payload_size > 0{
+            copy(payload, data[20:])
+        }
+
+        utils.LogData("Payload is:", payload_size, payload)
+        fmt.Printf("command is: %v\n", command)
+
+        // At this point, we have the command, payload size, and payload.
+        switch command {
+        case utils.NBD_COMMAND_LIST:
+            send_export_list(output)
+            break
+        case utils.NBD_COMMAND_EXPORT_NAME:
+            export_name(output, payload_size, payload)
+            break
+        }
 
         input := bufio.NewScanner(conn)
         for input.Scan() {

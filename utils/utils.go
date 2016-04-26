@@ -10,9 +10,14 @@ import (
 
 
 const (
-    NBD_REQUEST_MAGIC =                 0x25609513
-    NBD_REPLY_MAGIC =                   0x67446698
+    NBD_REQUEST_MAGIC =                 uint32(0x25609513)
+    NBD_REPLY_MAGIC =                   uint32(0x67446698)
     NBD_SERVER_SEND_REPLY_MAGIC =       uint64(0x3e889045565a9)
+
+    NBD_COMMAND_ACK =                   uint32(1)
+
+    NBD_COMMAND_EXPORT_NAME =           uint32(1)
+    NBD_COMMAND_LIST =                  uint32(3)
 )
 
 func ErrorCheck(err error) {
