@@ -9,8 +9,8 @@ import (
     "bufio"
     "encoding/binary"
     "time"
+    "os"
 )
-
 
 func send_export_list_item(output *bufio.Writer, export_name string) {
     data := make([]byte, 1024)
@@ -35,6 +35,22 @@ func send_ack(output *bufio.Writer) {
 
 func export_name(output *bufio.Writer, payload_size int, payload []byte) {
     fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
+
+    // attempt to open the file read only
+    file, err := os.Open("/Users/jacob/work/nbd/sample_disks/happyu")
+    utils.ErrorCheck(err)
+    defer file.Close()
+
+    data := make([]byte, 1024)
+    count, err := file.Read(data)
+    utils.ErrorCheck(err)
+
+    if count > 100 {
+        count = 100
+    }
+
+    fmt.Printf("File descriptor:\n%+v\n", file.Fd())
+    fmt.Printf("First 100 bytes: \n%v\n", data[:count])
 }
 
 func send_export_list(output *bufio.Writer) {
@@ -45,7 +61,6 @@ func send_export_list(output *bufio.Writer) {
     }
 
     send_ack(output)
-
 }
 
 func send_message(output *bufio.Writer, reply_type uint32, length uint32, data []byte ) {
