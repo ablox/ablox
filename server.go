@@ -62,21 +62,12 @@ func export_name(output *bufio.Writer, payload_size int, payload []byte) {
     binary.BigEndian.PutUint16(buffer[offset:], 0)  // flags
     offset += 2
 
-
-    //binary.BigEndian.PutUint16(buffer[offset:], 42)  // send bad data
-    //offset += 2
-
-
-    //offset += 122       // zero pad
     offset += 124       // zero pad
 
     len, err := output.Write(buffer[:offset])
     output.Flush()
     utils.ErrorCheck(err)
     fmt.Printf("Wrote %d chars: %v\n", len, buffer[:offset])
-
-    //send_ack(output)
-
 
     fmt.Printf("File descriptor:\n%+v\n", *file)
     fmt.Printf("First 100 bytes: \n%v\n", data[:count])
