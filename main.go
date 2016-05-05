@@ -54,8 +54,6 @@ func main() {
 
     data := make([]byte, 1000)
 
-    //request := createRequest()
-
     count, err := reader.Read(data)
     utils.ErrorCheck(err)
     utils.LogData("A", count, data)

@@ -49,7 +49,36 @@ func export_name(output *bufio.Writer, payload_size int, payload []byte) {
         count = 100
     }
 
-    fmt.Printf("File descriptor:\n%+v\n", file.Fd())
+    // send export information
+    // size u64
+    // flags u16
+    // Zeros (124 bytes)?
+    buffer := make([]byte, 256)
+    offset := 0
+
+    binary.BigEndian.PutUint64(buffer[offset:], 52428800)  // size
+    offset += 8
+
+    binary.BigEndian.PutUint16(buffer[offset:], 0)  // flags
+    offset += 2
+
+
+    //binary.BigEndian.PutUint16(buffer[offset:], 42)  // send bad data
+    //offset += 2
+
+
+    //offset += 122       // zero pad
+    offset += 124       // zero pad
+
+    len, err := output.Write(buffer[:offset])
+    output.Flush()
+    utils.ErrorCheck(err)
+    fmt.Printf("Wrote %d chars: %v\n", len, buffer[:offset])
+
+    //send_ack(output)
+
+
+    fmt.Printf("File descriptor:\n%+v\n", *file)
     fmt.Printf("First 100 bytes: \n%v\n", data[:count])
 }
 
@@ -164,6 +193,35 @@ func main() {
             export_name(output, payload_size, payload)
             break
         }
+
+        // Duplicated code. move this to helper function
+        // Duplicated code. move this to helper function
+        // Duplicated code. move this to helper function
+        // Duplicated code. move this to helper function
+        // Fetch the data until we get the initial options
+        fmt.Printf("about to read\n")
+        data = make([]byte, 1024)
+        offset = 0
+        waiting_for = 16       // wait for at least the minimum payload size
+
+        for offset < waiting_for {
+            length, err := conn.Read(data[offset:])
+            offset += length
+            utils.ErrorCheck(err)
+            utils.LogData("Reading instruction", offset, data)
+            if offset < waiting_for {
+                time.Sleep(5 * time.Millisecond)
+            }
+        }
+        fmt.Printf("done reading\n")
+        // Duplicated code. move this to helper function
+        // Duplicated code. move this to helper function
+        // Duplicated code. move this to helper function
+        // Duplicated code. move this to helper function
+
+
+
+
 
         input := bufio.NewScanner(conn)
         for input.Scan() {
