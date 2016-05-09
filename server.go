@@ -36,6 +36,8 @@ func send_ack(output *bufio.Writer) {
 func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte) {
     fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
 
+    defer conn.Close()
+
     // attempt to open the file read only
     file, err := os.Open("/Users/jacob/work/nbd/sample_disks/happyu")
     utils.ErrorCheck(err)
@@ -94,47 +96,114 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     //utils.ErrorCheck(err)
     fmt.Printf("Done sending data\n")
 
+    buffer = make([]byte, 512*1024)
+    for {
 
-    // Duplicated code. move this to helper function
-    // Duplicated code. move this to helper function
-    // Duplicated code. move this to helper function
-    // Duplicated code. move this to helper function
-    // Fetch the data until we get the initial options
-    time.Sleep(300 * time.Millisecond)
+        offset := 0
+        waiting_for := 24       // wait for at least the minimum payload size
 
-    fmt.Printf("about to read\n")
-    for ; ;  {
-        var zero_time time.Time
-        conn.SetReadDeadline(zero_time)
-        short_data := make([]byte, 1)
-        conn.Read(short_data)
-        fmt.Printf("read byte: %v\n", short_data)
-        time.Sleep(300 * time.Millisecond)
+        for offset < waiting_for {
+            length, err := conn.Read(buffer[offset:])
+            offset += length
+            utils.ErrorCheck(err)
+            utils.LogData("Reading instruction", offset, buffer)
+            if offset < waiting_for {
+                time.Sleep(5 * time.Millisecond)
+            }
+        }
 
-    }
+        //magic := binary.BigEndian.Uint32(buffer)
+        command := binary.BigEndian.Uint32(buffer[4:8])
+        handle := binary.BigEndian.Uint64(buffer[8:16])
+        from := binary.BigEndian.Uint64(buffer[16:24])
+        length := binary.BigEndian.Uint64(buffer[16:24])
 
-
-    //conn2, err = listener.Accept()
-    //utils.ErrorCheck(err)
-
-    data = make([]byte, 1024)
-    offset = 0
-    waiting_for := 16       // wait for at least the minimum payload size
-
-    for offset < waiting_for {
-        fmt.Printf("1: offset: %d, data: %v\n", offset, data)
-        length, err := conn.Read(data[offset:])
-        offset += length
-        fmt.Printf("3: offset: %d, err: %v, data: %v\n", offset, err, data)
-        //utils.ErrorCheck(err)
-        fmt.Printf("4: offset: %d, data: %v\n", offset, data)
-        utils.LogData("Reading instruction", offset, data)
-        fmt.Printf("5: offset: %d, data: %v\n", offset, data)
-        if offset < waiting_for {
-        fmt.Printf("6: offset: %d, data: %v\n", offset, data)
-            time.Sleep(1000 * time.Millisecond)
+        switch command {
+        case utils.NBD_COMMAND_READ:
+            fmt.Printf("We have a request to read handle: %v, from: %v, length: %v\n", handle, from, length)
+            continue
+        case utils.NBD_COMMAND_WRITE:
+            fmt.Printf("We have a request to write handle: %v, from: %v, length: %v\n", handle, from, length)
+            continue
+        case utils.NBD_COMMAND_DISCONNECT:
+            fmt.Printf("We have received a request to disconnect\n")
+            // close the file and return
+            return
         }
     }
+
+    //
+    //
+    //// Fetch the data until we get the initial options
+    //data := make([]byte, 1024)
+    //offset := 0
+    //waiting_for := 16       // wait for at least the minimum payload size
+    //
+    //for offset < waiting_for {
+    //    length, err := conn.Read(data[offset:])
+    //    offset += length
+    //    utils.ErrorCheck(err)
+    //    utils.LogData("Reading instruction", offset, data)
+    //    if offset < waiting_for {
+    //        time.Sleep(5 * time.Millisecond)
+    //    }
+    //}
+    //
+    //// Skip the first 8 characters (options)
+    //command := binary.BigEndian.Uint32(data[12:])
+    //payload_size := int(binary.BigEndian.Uint32(data[16:]))
+    //
+    //
+    //    syscall.Read(nbd.socket, buf[0:28])
+    //
+		//x.magic = binary.BigEndian.Uint32(buf)
+		//x.typus = binary.BigEndian.Uint32(buf[4:8])
+		//x.handle = binary.BigEndian.Uint64(buf[8:16])
+		//x.from = binary.BigEndian.Uint64(buf[16:24])
+		//x.len = binary.BigEndian.Uint32(buf[24:28])
+    //
+    //
+    //
+    //// Duplicated code. move this to helper function
+    //// Duplicated code. move this to helper function
+    //// Duplicated code. move this to helper function
+    //// Duplicated code. move this to helper function
+    //// Fetch the data until we get the initial options
+    //time.Sleep(300 * time.Millisecond)
+    //
+    //fmt.Printf("about to read\n")
+    //for ; ;  {
+    //    var zero_time time.Time
+    //    conn.SetReadDeadline(zero_time)
+    //    short_data := make([]byte, 1)
+    //    conn.Read(short_data)
+    //    fmt.Printf("read byte: %v\n", short_data)
+    //    time.Sleep(300 * time.Millisecond)
+    //
+    //}
+    //
+    //
+    ////conn2, err = listener.Accept()
+    ////utils.ErrorCheck(err)
+    //
+    //data = make([]byte, 1024)
+    //offset = 0
+    //waiting_for := 16       // wait for at least the minimum payload size
+    //
+    //for offset < waiting_for {
+    //    fmt.Printf("1: offset: %d, data: %v\n", offset, data)
+    //    length, err := conn.Read(data[offset:])
+    //    offset += length
+    //    fmt.Printf("3: offset: %d, err: %v, data: %v\n", offset, err, data)
+    //    //utils.ErrorCheck(err)
+    //    fmt.Printf("4: offset: %d, data: %v\n", offset, data)
+    //    utils.LogData("Reading instruction", offset, data)
+    //    fmt.Printf("5: offset: %d, data: %v\n", offset, data)
+    //    if offset < waiting_for {
+    //    fmt.Printf("6: offset: %d, data: %v\n", offset, data)
+    //        time.Sleep(1000 * time.Millisecond)
+    //    }
+    //}
     fmt.Printf("done reading\n")
     // Duplicated code. move this to helper function
     // Duplicated code. move this to helper function
@@ -186,7 +255,6 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
 
 
 func main() {
-    controlC := [...]byte{255, 244, 255, 253, 6}
     listener, err := net.Listen("tcp", "192.168.214.1:8000")
     utils.ErrorCheck(err)
 
@@ -251,64 +319,12 @@ func main() {
         switch command {
         case utils.NBD_COMMAND_LIST:
             send_export_list(output)
+            conn.Close()
             break
         case utils.NBD_COMMAND_EXPORT_NAME:
-            export_name(output, conn, payload_size, payload)
+            go export_name(output, conn, payload_size, payload)
             break
         }
-
-        // Duplicated code. move this to helper function
-        // Duplicated code. move this to helper function
-        // Duplicated code. move this to helper function
-        // Duplicated code. move this to helper function
-        // Fetch the data until we get the initial options
-        fmt.Printf("about to read\n")
-
-        //conn2, err = listener.Accept()
-        //utils.ErrorCheck(err)
-
-        data = make([]byte, 1024)
-        offset = 0
-        waiting_for = 16       // wait for at least the minimum payload size
-
-        for offset < waiting_for {
-            fmt.Printf("1: offset: %d, data: %v\n", offset, data)
-            length, err := conn.Read(data[offset:])
-            offset += length
-            fmt.Printf("3: offset: %d, err: %v, data: %v\n", offset, err, data)
-            //utils.ErrorCheck(err)
-            fmt.Printf("4: offset: %d, data: %v\n", offset, data)
-            utils.LogData("Reading instruction", offset, data)
-            fmt.Printf("5: offset: %d, data: %v\n", offset, data)
-            if offset < waiting_for {
-            fmt.Printf("6: offset: %d, data: %v\n", offset, data)
-                time.Sleep(1000 * time.Millisecond)
-            }
-        }
-        fmt.Printf("done reading\n")
-        // Duplicated code. move this to helper function
-        // Duplicated code. move this to helper function
-        // Duplicated code. move this to helper function
-        // Duplicated code. move this to helper function
-
-
-
-
-
-        input := bufio.NewScanner(conn)
-        for input.Scan() {
-            if len(input.Bytes()) == 5 {
-                temp := [...]byte{0, 0, 0, 0, 0}
-                copy(temp[:], input.Bytes())
-                if temp == controlC {
-                    fmt.Printf("Control-C received. Bye\n")
-                    break
-                }
-            }
-            fmt.Printf("%s echo: %s '%v'\n", conn.RemoteAddr().String(), input.Text(), input.Bytes())
-        }
-        conn.Close()
-
     }
 
 }
