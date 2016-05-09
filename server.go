@@ -10,6 +10,7 @@ import (
     "encoding/binary"
     "time"
     "os"
+    "bytes"
 )
 
 func send_export_list_item(output *bufio.Writer, export_name string) {
@@ -38,8 +39,13 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     defer conn.Close()
 
+    var filename bytes.Buffer
+    filename.WriteString("/Users/jacob/work/nbd/sample_disks/")
+    filename.WriteString(string(payload[:payload_size]))
+    fmt.Println("Opening file: %s", filename.String())
+
     // attempt to open the file read only
-    file, err := os.Open("/Users/jacob/work/nbd/sample_disks/happyu")
+    file, err := os.Open(filename.String())
     utils.ErrorCheck(err)
     //defer file.Close()
 
@@ -97,13 +103,15 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     fmt.Printf("Done sending data\n")
 
     buffer = make([]byte, 512*1024)
+    file_position := uint64(0)
+    conn_reader := bufio.NewReader(conn)
     for {
 
         offset := 0
-        waiting_for := 24       // wait for at least the minimum payload size
+        waiting_for := 28       // wait for at least the minimum payload size
 
         for offset < waiting_for {
-            length, err := conn.Read(buffer[offset:])
+            length, err := conn_reader.Read(buffer[offset:waiting_for])
             offset += length
             utils.ErrorCheck(err)
             utils.LogData("Reading instruction", offset, buffer)
@@ -116,11 +124,27 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
         command := binary.BigEndian.Uint32(buffer[4:8])
         handle := binary.BigEndian.Uint64(buffer[8:16])
         from := binary.BigEndian.Uint64(buffer[16:24])
-        length := binary.BigEndian.Uint64(buffer[16:24])
+        length := binary.BigEndian.Uint32(buffer[24:28])
 
         switch command {
         case utils.NBD_COMMAND_READ:
-            fmt.Printf("We have a request to read handle: %v, from: %v, length: %v\n", handle, from, length)
+            fmt.Printf("We have a request to read handle: %v, from: %v, length: %v, file_position: %v\n", handle, from, length, file_position)
+            if file_position != from {
+                fmt.Printf("Seeking to %v\n", int64(from))
+                file.Seek(int64(from), 0)     // seek to the requested position relative to the start of the file
+                file_position = from
+            }
+            len, err = file.Read(buffer[28:28+length])
+            file_position += uint64(length)
+            fmt.Printf("new file position is: %v\n", file_position)
+            utils.ErrorCheck(err)
+
+            binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
+            binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
+
+            utils.LogData("About to reply with", int(28+length), buffer)
+            conn.Write(buffer[:28+length])
+
             continue
         case utils.NBD_COMMAND_WRITE:
             fmt.Printf("We have a request to write handle: %v, from: %v, length: %v\n", handle, from, length)
