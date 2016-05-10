@@ -27,7 +27,8 @@ const (
 
 func ErrorCheck(err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encountered: %v", err)
+		fmt.Fprintf(os.Stderr, "Error encountered: %v\n", err)
+        panic("Nooooooooo")
 		os.Exit(0)
 	}
 }
