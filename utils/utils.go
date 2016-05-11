@@ -28,8 +28,8 @@ const (
 func ErrorCheck(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error encountered: %v\n", err)
-        panic("Nooooooooo\n")
-		os.Exit(0)
+//        panic("Nooooooooo\n")
+//		os.Exit(0)
 	}
 }
 
