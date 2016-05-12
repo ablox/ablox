@@ -12,6 +12,8 @@ import (
     "os"
     "bytes"
     "io"
+    "os/user"
+    "log"
 )
 
 func send_export_list_item(output *bufio.Writer, export_name string) {
@@ -35,13 +37,21 @@ func send_ack(output *bufio.Writer) {
     send_message(output, utils.NBD_COMMAND_ACK, 0, nil)
 }
 
+func get_user_home_dir() (homedir string) {
+    usr, err := user.Current()
+    if err != nil {
+        log.Fatal(err)
+    }
+    return usr.HomeDir
+}
+
 func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte) {
     fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
 
     defer conn.Close()
 
     var filename bytes.Buffer
-    filename.WriteString("/Users/jacob/work/nbd/sample_disks/")
+    filename.WriteString(get_user_home_dir() + "/sample_disks/")
 
     actual_filename := string(payload[:payload_size])
 
@@ -183,9 +193,14 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
     utils.LogData("Just sent:", offset, data_to_send)
 }
 
-
 func main() {
-    listener, err := net.Listen("tcp", "192.168.214.1:8000")
+
+    if len(os.Args) == 1 {
+        print("missing arguments:  ipaddress portnumber")
+        return
+    }
+
+    listener, err := net.Listen("tcp", os.Args[1] + ":" + os.Args[2])
     utils.ErrorCheck(err)
 
     fmt.Printf("Hello World, we have %v\n", listener)
