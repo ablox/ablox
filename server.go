@@ -106,7 +106,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             }
         }
         if abort {
-            fmt.Printf("Abort detected, esaping processing loop\n")
+            fmt.Printf("Abort detected, escaping processing loop\n")
             break
         }
 
