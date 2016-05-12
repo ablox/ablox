@@ -195,8 +195,8 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
 
 func main() {
 
-    if len(os.Args) == 1 {
-        print("missing arguments:  ipaddress portnumber")
+    if len(os.Args) <  3 {
+        panic("missing arguments:  (ipaddress) (portnumber)")
         return
     }
 
