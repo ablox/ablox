@@ -56,7 +56,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     }
 
     filename.WriteString(actual_filename)
-    fmt.Printf("Opening file: %s", filename.String())
+    fmt.Printf("Opening file: %s\n", filename.String())
 
     // attempt to open the file read only
     file, err := os.OpenFile(filename.String(), os.O_RDWR, 0644)
@@ -116,7 +116,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
         switch command {
         case utils.NBD_COMMAND_READ:
-            fmt.Printf("We have a request to read handle: %v, from: %v, length: %v\n", handle, from, length)
+            fmt.Printf("We have a request to read. handle: %v, from: %v, length: %v\n", handle, from, length)
             fmt.Printf("Read Resquest    Offset:%x length: %v     Handle %X\n", from, length, handle)
 
             data_out, err = file.ReadAt(buffer[16:16+length], int64(from))
@@ -131,7 +131,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
             continue
         case utils.NBD_COMMAND_WRITE:
-            fmt.Printf("We have a request to write handle: %v, from: %v, length: %v\n", handle, from, length)
+            fmt.Printf("We have a request to write. handle: %v, from: %v, length: %v\n", handle, from, length)
 
             waiting_for += int(length)                   // wait for the additional payload
 
@@ -151,11 +151,12 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             }
 // Duplicate
 
-            data_out, err = file.WriteAt(buffer[16:16+length], int64(from))
+            data_out, err = file.WriteAt(buffer[28:28+length], int64(from))
             utils.ErrorCheck(err)
             file.Sync()
 
             continue
+
         case utils.NBD_COMMAND_DISCONNECT:
             fmt.Printf("We have received a request to disconnect\n")
             // close the file and return
