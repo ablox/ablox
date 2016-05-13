@@ -150,29 +150,26 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
                 }
             }
 // Duplicate
-            fmt.Printf("Finsihed waiting for data. Yay. We have offset: %d and waiting_for %d\n", offset, waiting_for)
+
             data_out, err = file.WriteAt(buffer[28:28+length], int64(from))
-            fmt.Printf("Literally have written the data out.\n")
             utils.ErrorCheck(err)
-            fmt.Printf("Past the error check\n")
 
             file.Sync()
-            fmt.Printf("Done with sync call\n")
 
             // let them know we are done
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
             utils.LogData("About to reply with", int(16), buffer)
-
             conn.Write(buffer[:16])
-            fmt.Printf("done with sending response\n")
 
             continue
 
         case utils.NBD_COMMAND_DISCONNECT:
             fmt.Printf("We have received a request to disconnect\n")
             // close the file and return
+
+            file.Sync()
             return
         }
     }
