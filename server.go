@@ -54,7 +54,9 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     defer conn.Close()
 
     var filename bytes.Buffer
-    filename.WriteString(get_user_home_dir() + nbd_folder)
+    current_directory, err := os.Getwd()
+    utils.ErrorCheck(err)
+    filename.WriteString(current_directory + nbd_folder)
 
     actual_filename := string(payload[:payload_size])
 
@@ -66,7 +68,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     fmt.Printf("Opening file: %s", filename.String())
 
     // attempt to open the file read only
-    file, err := os.Open(filename.String())
+    file, err := os.OpenFile(filename.String(), os.O_RDWR, 0644)
     utils.ErrorCheck(err)
 
     buffer := make([]byte, 256)
@@ -87,14 +89,13 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     fmt.Printf("Wrote %d chars: %v\n", data_out, buffer[:offset])
 
     buffer = make([]byte, 512*1024)
-    file_position := uint64(0)
     conn_reader := bufio.NewReader(conn)
     abort := false
     for {
-
         offset := 0
         waiting_for := 28       // wait for at least the minimum payload size
 
+// Duplicate
         for offset < waiting_for {
             length, err := conn_reader.Read(buffer[offset:waiting_for])
             offset += length
@@ -108,6 +109,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
                 time.Sleep(5 * time.Millisecond)
             }
         }
+// Duplicate
         if abort {
             fmt.Printf("Abort detected, escaping processing loop\n")
             break
@@ -123,31 +125,45 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
         switch command {
         case utils.NBD_COMMAND_READ:
-            fmt.Printf("We have a request to read handle: %v, from: %v, length: %v, file_position: %v\n", handle, from, length, file_position)
+            fmt.Printf("We have a request to read handle: %v, from: %v, length: %v\n", handle, from, length)
             fmt.Printf("Read Resquest    Offset:%x length: %v     Handle %X\n", from, length, handle)
-            if file_position != from {
-                fmt.Printf("Seeking to %v\n", int64(from))
-                file.Seek(int64(from), 0)     // seek to the requested position relative to the start of the file
-                file_position = from
-            }
-            data_out, err = file.Read(buffer[16:16+length])
-            file_position += uint64(length)
-            fmt.Printf("new file position is: %v\n", file_position)
+
+            data_out, err = file.ReadAt(buffer[16:16+length], int64(from))
             utils.ErrorCheck(err)
 
-            // Should not be big indian?
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
             utils.LogData("About to reply with", int(16+length), buffer)
-            fmt.Printf("length of buffer: %v\n", len(buffer[:16+length]))
-            fmt.Printf("tail of buffer: %v\n", buffer[length:16+length])
 
             conn.Write(buffer[:16+length])
 
             continue
         case utils.NBD_COMMAND_WRITE:
             fmt.Printf("We have a request to write handle: %v, from: %v, length: %v\n", handle, from, length)
+
+            waiting_for += int(length)                   // wait for the additional payload
+
+// Duplicate
+            for offset < waiting_for {
+                length, err := conn_reader.Read(buffer[offset:waiting_for])
+                offset += length
+                utils.ErrorCheck(err)
+                if err == io.EOF {
+                    abort = true
+                    break
+                }
+                utils.LogData("Reading write data\n", offset, buffer)
+                if offset < waiting_for {
+                    time.Sleep(5 * time.Millisecond)
+                }
+            }
+// Duplicate
+
+            data_out, err = file.WriteAt(buffer[16:16+length], int64(from))
+            utils.ErrorCheck(err)
+            file.Sync()
+
             continue
         case utils.NBD_COMMAND_DISCONNECT:
             fmt.Printf("We have received a request to disconnect\n")
