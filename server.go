@@ -12,9 +12,12 @@ import (
     "os"
     "bytes"
     "io"
+    "io/ioutil"
     "os/user"
     "log"
 )
+
+const nbd_folder = "/sample_disks/"
 
 func send_export_list_item(output *bufio.Writer, export_name string) {
     data := make([]byte, 1024)
@@ -51,7 +54,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     defer conn.Close()
 
     var filename bytes.Buffer
-    filename.WriteString(get_user_home_dir() + "/sample_disks/")
+    filename.WriteString(get_user_home_dir() + nbd_folder)
 
     actual_filename := string(payload[:payload_size])
 
@@ -155,10 +158,12 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 }
 
 func send_export_list(output *bufio.Writer) {
-    export_name_list := []string{"happy_export", "very_happy_export", "third_export"}
-
-    for index := range export_name_list {
-        send_export_list_item(output, export_name_list[index])
+    files, err := ioutil.ReadDir(get_user_home_dir() + nbd_folder)
+    if err != nil {
+        log.Fatal(err)
+    }
+    for _, file := range files {
+        send_export_list_item(output, file.Name())
     }
 
     send_ack(output)
