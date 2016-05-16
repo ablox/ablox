@@ -47,15 +47,10 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     var filename bytes.Buffer
     current_directory, err := os.Getwd()
     utils.ErrorCheck(err)
-    filename.WriteString(current_directory + nbd_folder)
+    filename.WriteString(current_directory)
+    filename.WriteString(nbd_folder)
+    filename.Write(payload[:payload_size])
 
-    actual_filename := string(payload[:payload_size])
-
-    if actual_filename == "export" {
-        actual_filename = "test_fake_hdd"
-    }
-
-    filename.WriteString(actual_filename)
     fmt.Printf("Opening file: %s\n", filename.String())
 
     // attempt to open the file read only
