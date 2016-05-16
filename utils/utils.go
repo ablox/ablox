@@ -8,7 +8,6 @@ import (
     "os"
 )
 
-
 const (
     NBD_REQUEST_MAGIC =                 uint32(0x25609513)
     NBD_REPLY_MAGIC =                   uint32(0x67446698)

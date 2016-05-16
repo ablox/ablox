@@ -74,6 +74,10 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     utils.ErrorCheck(err)
     fmt.Printf("Wrote %d chars: %v\n", data_out, buffer[:offset])
 
+    // Check the options to see if we need to pad with Zeros
+
+
+
     buffer = make([]byte, 512*1024)
     conn_reader := bufio.NewReader(conn)
     abort := false
@@ -234,9 +238,7 @@ func main() {
         output := bufio.NewWriter(conn)
 
         output.WriteString("NBDMAGIC")      // init password
-        output.Flush()
         output.WriteString("IHAVEOPT")      // Magic
-        output.Flush()
         output.Write([]byte{0, 3})          // Flags (3 = supports list)
         output.Flush()
 
