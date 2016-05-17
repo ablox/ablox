@@ -22,6 +22,9 @@ const (
 
     NBD_COMMAND_EXPORT_NAME =           uint32(1)
     NBD_COMMAND_LIST =                  uint32(3)
+
+    NBD_FLAG_FIXED_NEW_STYLE =          uint32(1)
+    NBD_FLAG_NO_ZEROES =                uint32(2)
 )
 
 func ErrorCheck(err error) {

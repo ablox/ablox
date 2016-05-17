@@ -18,6 +18,10 @@ import (
 
 const nbd_folder = "/sample_disks/"
 
+var characters_per_line = 100
+var newline = 0
+var line_number = 0
+
 func send_export_list_item(output *bufio.Writer, export_name string) {
     data := make([]byte, 1024)
     length := len(export_name)
@@ -39,7 +43,7 @@ func send_ack(output *bufio.Writer) {
     send_message(output, utils.NBD_COMMAND_ACK, 0, nil)
 }
 
-func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte) {
+func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte, pad_with_zeros bool) {
     fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
 
     defer conn.Close()
@@ -69,14 +73,16 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     binary.BigEndian.PutUint16(buffer[offset:], 1)  // flags
     offset += 2
 
-    data_out, err := output.Write(buffer[:offset])
+    if pad_with_zeros {
+        offset += 124               // pad with 124 zeroes
+    }
+
+    _, err = output.Write(buffer[:offset])
+    //data_out, err := output.Write(buffer[:offset])
+
     output.Flush()
     utils.ErrorCheck(err)
-    fmt.Printf("Wrote %d chars: %v\n", data_out, buffer[:offset])
-
-    // Check the options to see if we need to pad with Zeros
-
-
+    //fmt.Printf("Wrote %d chars: %v\n", data_out, buffer[:offset])
 
     buffer = make([]byte, 512*1024)
     conn_reader := bufio.NewReader(conn)
@@ -84,7 +90,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     for {
         offset := 0
         waiting_for := 28       // wait for at least the minimum payload size
-
+        //fmt.Printf("Sitting at top of export loop.  offset: %d, waiting_for: %d\n", offset, waiting_for)
 // Duplicate
         for offset < waiting_for {
             length, err := conn_reader.Read(buffer[offset:waiting_for])
@@ -94,7 +100,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
                 abort = true
                 break
             }
-            utils.LogData("Reading instruction\n", offset, buffer)
+            //utils.LogData("Reading instruction\n", offset, buffer)
             if offset < waiting_for {
                 time.Sleep(5 * time.Millisecond)
             }
@@ -105,32 +111,42 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             break
         }
 
-        fmt.Printf("We read the buffer %v\n", buffer[:waiting_for])
+        //fmt.Printf("We read the buffer %v\n", buffer[:waiting_for])
 
         //magic := binary.BigEndian.Uint32(buffer)
         command := binary.BigEndian.Uint32(buffer[4:8])
-        handle := binary.BigEndian.Uint64(buffer[8:16])
+        //handle := binary.BigEndian.Uint64(buffer[8:16])
         from := binary.BigEndian.Uint64(buffer[16:24])
         length := binary.BigEndian.Uint32(buffer[24:28])
 
+        newline += 1;
+        if newline % characters_per_line == 0 {
+            line_number++
+            fmt.Printf("\n%3d: ", line_number)
+            newline -= characters_per_line
+
+        }
+
         switch command {
         case utils.NBD_COMMAND_READ:
-            fmt.Printf("We have a request to read. handle: %v, from: %v, length: %v\n", handle, from, length)
-            fmt.Printf("Read Resquest    Offset:%x length: %v     Handle %X\n", from, length, handle)
+            //fmt.Printf("We have a request to read. handle: %v, from: %v, length: %v\n", handle, from, length)
+            //fmt.Printf("Read Resquest    Offset:%x length: %v     Handle %X\n", from, length, handle)
+            fmt.Printf(".")
 
-            data_out, err = file.ReadAt(buffer[16:16+length], int64(from))
+            _, err = file.ReadAt(buffer[16:16+length], int64(from))
             utils.ErrorCheck(err)
 
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
-            utils.LogData("About to reply with", int(16+length), buffer)
+            //utils.LogData("About to reply with", int(16+length), buffer)
 
             conn.Write(buffer[:16+length])
 
             continue
         case utils.NBD_COMMAND_WRITE:
-            fmt.Printf("We have a request to write. handle: %v, from: %v, length: %v\n", handle, from, length)
+            //fmt.Printf("We have a request to write. handle: %v, from: %v, length: %v\n", handle, from, length)
+            fmt.Printf("W")
 
             waiting_for += int(length)                   // wait for the additional payload
 
@@ -143,14 +159,14 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
                     abort = true
                     break
                 }
-                utils.LogData("Reading write data\n", offset, buffer)
+                //utils.LogData("Reading write data\n", offset, buffer)
                 if offset < waiting_for {
                     time.Sleep(5 * time.Millisecond)
                 }
             }
 // Duplicate
 
-            data_out, err = file.WriteAt(buffer[28:28+length], int64(from))
+            _, err = file.WriteAt(buffer[28:28+length], int64(from))
             utils.ErrorCheck(err)
 
             file.Sync()
@@ -159,13 +175,15 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
-            utils.LogData("About to reply with", int(16), buffer)
+            //utils.LogData("About to reply with", int(16), buffer)
             conn.Write(buffer[:16])
 
             continue
 
         case utils.NBD_COMMAND_DISCONNECT:
-            fmt.Printf("We have received a request to disconnect\n")
+            fmt.Printf("D")
+
+            //fmt.Printf("We have received a request to disconnect\n%d\n", data_out)
             // close the file and return
 
             file.Sync()
@@ -239,7 +257,14 @@ func main() {
 
         output.WriteString("NBDMAGIC")      // init password
         output.WriteString("IHAVEOPT")      // Magic
-        output.Write([]byte{0, 3})          // Flags (3 = supports list)
+        //output.Write([]byte{0, 3})          // Flags (3 = supports list)
+        output.Write([]byte{0, 0})
+
+
+
+        //NBD_FLAG_FIXED_NEW_STYLE =          uint32(1)
+        //NBD_FLAG_NO_ZEROES =                uint32(2)
+
         output.Flush()
 
         // Fetch the data until we get the initial options
@@ -259,13 +284,26 @@ func main() {
             if offset < waiting_for {
                 time.Sleep(5 * time.Millisecond)
             }
+            // If we are requesting an export, make sure we have the length of the data for the export name.
+            if offset > 15 && binary.BigEndian.Uint32(data[12:]) == utils.NBD_COMMAND_EXPORT_NAME {
+                waiting_for = 20
+            }
         }
 
-        fmt.Printf("%d packets processed to get %d bytes", packet_count, offset)
+        fmt.Printf("%d packets processed to get %d bytes\n", packet_count, offset)
         utils.LogData("Received from client", offset, data)
-        // Skip the first 8 characters (options)
+        options := binary.BigEndian.Uint32(data[:4])
         command := binary.BigEndian.Uint32(data[12:])
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
+        fmt.Printf("Options are: %v\n", options)
+        if (options & utils.NBD_FLAG_FIXED_NEW_STYLE) == utils.NBD_FLAG_FIXED_NEW_STYLE {
+            fmt.Printf("Fixed New Style option requested\n")
+        }
+        pad_with_zeros := true
+        if (options & utils.NBD_FLAG_NO_ZEROES) == utils.NBD_FLAG_NO_ZEROES {
+            pad_with_zeros = false
+            fmt.Printf("No Zero Padding option requested\n")
+        }
 
         fmt.Sprintf("command is: %d\npayload_size is: %d\n", command, payload_size)
         waiting_for += int(payload_size)
@@ -294,7 +332,7 @@ func main() {
             conn.Close()
             break
         case utils.NBD_COMMAND_EXPORT_NAME:
-            go export_name(output, conn, payload_size, payload)
+            go export_name(output, conn, payload_size, payload, pad_with_zeros)
             break
         }
     }
