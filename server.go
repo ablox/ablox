@@ -59,7 +59,11 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     // attempt to open the file read only
     file, err := os.OpenFile(filename.String(), os.O_RDWR, 0644)
+
     utils.ErrorCheck(err)
+    if err != nil {
+        return
+    }
 
     buffer := make([]byte, 256)
     offset := 0
