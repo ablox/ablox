@@ -251,12 +251,13 @@ func main() {
             length, err := conn.Read(data[offset:])
             offset += length
             utils.ErrorCheck(err)
-            utils.LogData("Reading instruction", offset, data)
+            //utils.LogData("Reading instruction", offset, data)
             if offset < waiting_for {
                 time.Sleep(5 * time.Millisecond)
             }
         }
 
+        utils.LogData("Received from client", offset, data)
         // Skip the first 8 characters (options)
         command := binary.BigEndian.Uint32(data[12:])
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
