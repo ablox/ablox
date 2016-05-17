@@ -247,8 +247,12 @@ func main() {
         offset := 0
         waiting_for := 16       // wait for at least the minimum payload size
 
+        packet_count := 0
         for offset < waiting_for {
             length, err := conn.Read(data[offset:])
+            if length > 0 {
+                packet_count += 1
+            }
             offset += length
             utils.ErrorCheck(err)
             //utils.LogData("Reading instruction", offset, data)
@@ -257,6 +261,7 @@ func main() {
             }
         }
 
+        fmt.Printf("%d packets processed to get %d bytes", packet_count, offset)
         utils.LogData("Received from client", offset, data)
         // Skip the first 8 characters (options)
         command := binary.BigEndian.Uint32(data[12:])
