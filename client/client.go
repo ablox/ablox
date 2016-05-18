@@ -12,7 +12,7 @@ import (
 	"bufio"
     "encoding/binary"
     "reflect"
-    "./utils"
+	"../utils"
 )
 
 type NBDRequest struct {

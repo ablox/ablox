@@ -5,7 +5,7 @@ package main
 import (
     "fmt"
     "net"
-    "./utils"
+    "../utils"
     "bufio"
     "encoding/binary"
     "time"
