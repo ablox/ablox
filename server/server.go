@@ -217,7 +217,7 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
     endian.PutUint64(buffer[offset:], utils.NBD_SERVER_SEND_REPLY_MAGIC)
     offset += 8
 
-    endian.PutUint32(buffer[offset:], uint32(3))  // Flags (3 = supports list)
+    endian.PutUint32(buffer[offset:], uint32(3))  // not sure what this is....
     offset += 4
 
     endian.PutUint32(buffer[offset:], reply_type)  // reply_type: NBD_REP_SERVER
@@ -261,13 +261,8 @@ func main() {
 
         output.WriteString("NBDMAGIC")      // init password
         output.WriteString("IHAVEOPT")      // Magic
-        //output.Write([]byte{0, 3})          // Flags (3 = supports list)
-        output.Write([]byte{0, 0})
-
-
-
-        //NBD_FLAG_FIXED_NEW_STYLE =          uint32(1)
-        //NBD_FLAG_NO_ZEROES =                uint32(2)
+        output.Write([]byte{0, 3})          // Flags (3 = supports list)
+        //output.Write([]byte{0, 0})
 
         output.Flush()
 
