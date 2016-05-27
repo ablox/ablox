@@ -88,7 +88,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     utils.ErrorCheck(err)
     //fmt.Printf("Wrote %d chars: %v\n", data_out, buffer[:offset])
 
-    buffer = make([]byte, 512*1024)
+    buffer = make([]byte, 2048*1024)    // set the buffer to 2mb
     conn_reader := bufio.NewReader(conn)
     abort := false
     for {
@@ -126,9 +126,8 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
         newline += 1;
         if newline % characters_per_line == 0 {
             line_number++
-            fmt.Printf("\n%3d: ", line_number)
+            fmt.Printf("\n%5d: ", line_number * 100)
             newline -= characters_per_line
-
         }
 
         switch command {
@@ -137,6 +136,9 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             //fmt.Printf("Read Resquest    Offset:%x length: %v     Handle %X\n", from, length, handle)
             fmt.Printf(".")
 
+            // working on diagnosing qemu connections from localhost to mount to os x nbd
+            //fmt.Printf("len(buffer) %d, length: %d, from %d\n", len(buffer), length, int64(from))
+
             _, err = file.ReadAt(buffer[16:16+length], int64(from))
             utils.ErrorCheck(err)
 
@@ -144,7 +146,6 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
             //utils.LogData("About to reply with", int(16+length), buffer)
-
             conn.Write(buffer[:16+length])
 
             continue
@@ -261,8 +262,10 @@ func main() {
 
         output.WriteString("NBDMAGIC")      // init password
         output.WriteString("IHAVEOPT")      // Magic
-        output.Write([]byte{0, 3})          // Flags (3 = supports list)
-        //output.Write([]byte{0, 0})
+        //fmt.printf("arg ")
+        //output.Write([]byte{0, byte(os.Args[3][1])})
+        //output.Write([]byte{0, 3})          // Ubuntu
+        output.Write([]byte{0, 0})        // Qemu
 
         output.Flush()
 
