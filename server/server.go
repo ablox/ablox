@@ -57,7 +57,6 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     fmt.Printf("Opening file: %s\n", filename.String())
 
-    // attempt to open the file read only
     file, err := os.OpenFile(filename.String(), os.O_RDWR, 0644)
 
     utils.ErrorCheck(err)
