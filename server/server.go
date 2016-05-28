@@ -8,7 +8,7 @@ import (
     "../utils"
     "bufio"
     "encoding/binary"
-    "time"
+    //"time"
     "os"
     "bytes"
     "io"
@@ -22,7 +22,7 @@ var characters_per_line = 100
 var newline = 0
 var line_number = 0
 
-func send_export_list_item(output *bufio.Writer, optionSentByClient []byte, export_name string) {
+func send_export_list_item(output *bufio.Writer, options uint32, export_name string) {
     data := make([]byte, 1024)
     length := len(export_name)
     offset := 0
@@ -36,14 +36,14 @@ func send_export_list_item(output *bufio.Writer, optionSentByClient []byte, expo
     offset += length
 
     reply_type := uint32(2)     // reply_type: NBD_REP_SERVER
-    send_message(output, optionSentByClient, reply_type, uint32(offset), data)
+    send_message(output, options, reply_type, uint32(offset), data)
 }
 
-func send_ack(output *bufio.Writer, optionSentByClient []byte) {
-    send_message(output, optionSentByClient, utils.NBD_COMMAND_ACK, 0, nil)
+func send_ack(output *bufio.Writer, options uint32) {
+    send_message(output, options, utils.NBD_COMMAND_ACK, 0, nil)
 }
 
-func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte, pad_with_zeros bool) {
+func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte, options uint32) {
     fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
 
     defer conn.Close()
@@ -76,7 +76,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     binary.BigEndian.PutUint16(buffer[offset:], 1)  // flags
     offset += 2
 
-    if pad_with_zeros {
+    if (options & utils.NBD_FLAG_NO_ZEROES) != utils.NBD_FLAG_NO_ZEROES {
         offset += 124               // pad with 124 zeroes
     }
 
@@ -157,20 +157,20 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     }
 }
 
-func send_export_list(output *bufio.Writer, optionSentByClient []byte) {
+func send_export_list(output *bufio.Writer, options uint32) {
     current_directory, err := os.Getwd()
     files, err := ioutil.ReadDir(current_directory + nbd_folder)
     if err != nil {
         log.Fatal(err)
     }
     for _, file := range files {
-        send_export_list_item(output, optionSentByClient, file.Name())
+        send_export_list_item(output, options, file.Name())
     }
 
-    send_ack(output, optionSentByClient)
+    send_ack(output, options)
 }
 
-func send_message(output *bufio.Writer, optionSentByClient []byte, reply_type uint32, length uint32, data []byte ) {
+func send_message(output *bufio.Writer, options uint32, reply_type uint32, length uint32, data []byte ) {
     endian := binary.BigEndian
     buffer := make([]byte, 1024)
     offset := 0
@@ -178,7 +178,7 @@ func send_message(output *bufio.Writer, optionSentByClient []byte, reply_type ui
     endian.PutUint64(buffer[offset:], utils.NBD_SERVER_SEND_REPLY_MAGIC)
     offset += 8
 
-    copy(buffer[offset:], optionSentByClient)
+    endian.PutUint32(buffer[offset:], options)  // put out the server options
     offset += 4
 
     endian.PutUint32(buffer[offset:], reply_type)  // reply_type: NBD_REP_SERVER
@@ -240,54 +240,34 @@ func main() {
         offset := 0
         waiting_for := 16       // wait for at least the minimum payload size
 
-        packet_count := 0
-        for offset < waiting_for {
-            length, err := conn.Read(data[offset:])
-            if length > 0 {
-                packet_count += 1
-            }
-            offset += length
-            utils.ErrorCheck(err)
-            //utils.LogData("Reading instruction", offset, data)
-            if offset < waiting_for {
-                time.Sleep(5 * time.Millisecond)
-            }
-            // If we are requesting an export, make sure we have the length of the data for the export name.
-            if offset > 15 && binary.BigEndian.Uint32(data[12:]) == utils.NBD_COMMAND_EXPORT_NAME {
-                waiting_for = 20
-            }
-        }
+        _, err = io.ReadFull(conn, data[:waiting_for])
+        utils.ErrorCheck(err)
 
-        fmt.Printf("%d packets processed to get %d bytes\n", packet_count, offset)
-        utils.LogData("Received from client", offset, data)
-        var optionsSentByClientBytes = data[:4]
-        optionSentByClient := binary.BigEndian.Uint32(optionsSentByClientBytes)
-        command := binary.BigEndian.Uint32(data[12:])
+        options := binary.BigEndian.Uint32(data[:4])
+        command := binary.BigEndian.Uint32(data[12:16])
+
+        // If we are requesting an export, make sure we have the length of the data for the export name.
+        if binary.BigEndian.Uint32(data[12:]) == utils.NBD_COMMAND_EXPORT_NAME {
+            waiting_for += 4
+            _, err = io.ReadFull(conn, data[16:20])
+            utils.ErrorCheck(err)
+        }
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
-        fmt.Printf("Options are: %v\n", optionSentByClient)
-        if (optionSentByClient & utils.NBD_FLAG_FIXED_NEW_STYLE) == utils.NBD_FLAG_FIXED_NEW_STYLE {
-            fmt.Printf("Fixed New Style option requested\n")
-        }
-        pad_with_zeros := true
-        if (optionSentByClient & utils.NBD_FLAG_NO_ZEROES) == utils.NBD_FLAG_NO_ZEROES {
-            pad_with_zeros = false
-            fmt.Printf("No Zero Padding option requested\n")
-        }
+
+        //fmt.Printf("Options are: %v\n", options)
+        //if (options & utils.NBD_FLAG_FIXED_NEW_STYLE) == utils.NBD_FLAG_FIXED_NEW_STYLE {
+        //    fmt.Printf("Fixed New Style option requested\n")
+        //}
 
         fmt.Sprintf("command is: %d\npayload_size is: %d\n", command, payload_size)
+        offset = waiting_for
         waiting_for += int(payload_size)
-        for offset < waiting_for {
-            length, err := conn.Read(data[offset:])
-            offset += length
-            utils.ErrorCheck(err)
-            utils.LogData("Reading instruction", offset, data)
-            if offset < waiting_for {
-                time.Sleep(5 * time.Millisecond)
-            }
-        }
+        _, err = io.ReadFull(conn, data[offset:waiting_for])
+        utils.ErrorCheck(err)
+
         payload := make([]byte, payload_size)
 
-        if payload_size > 0{
+        if payload_size > 0 {
             copy(payload, data[20:])
         }
 
@@ -297,12 +277,11 @@ func main() {
         // At this point, we have the command, payload size, and payload.
         switch command {
         case utils.NBD_COMMAND_LIST:
-
-            send_export_list(output, optionsSentByClientBytes)
+            send_export_list(output, options)
             conn.Close()
             break
         case utils.NBD_COMMAND_EXPORT_NAME:
-            go export_name(output, conn, payload_size, payload, pad_with_zeros)
+            go export_name(output, conn, payload_size, payload, options)
             break
         }
     }
