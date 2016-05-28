@@ -22,7 +22,7 @@ var characters_per_line = 100
 var newline = 0
 var line_number = 0
 
-func send_export_list_item(output *bufio.Writer, export_name string) {
+func send_export_list_item(output *bufio.Writer, optionSentByClient []byte, export_name string) {
     data := make([]byte, 1024)
     length := len(export_name)
     offset := 0
@@ -36,11 +36,11 @@ func send_export_list_item(output *bufio.Writer, export_name string) {
     offset += length
 
     reply_type := uint32(2)     // reply_type: NBD_REP_SERVER
-    send_message(output, reply_type, uint32(offset), data)
+    send_message(output, optionSentByClient, reply_type, uint32(offset), data)
 }
 
-func send_ack(output *bufio.Writer) {
-    send_message(output, utils.NBD_COMMAND_ACK, 0, nil)
+func send_ack(output *bufio.Writer, optionSentByClient []byte) {
+    send_message(output, optionSentByClient, utils.NBD_COMMAND_ACK, 0, nil)
 }
 
 func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte, pad_with_zeros bool) {
@@ -157,20 +157,20 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     }
 }
 
-func send_export_list(output *bufio.Writer) {
+func send_export_list(output *bufio.Writer, optionSentByClient []byte) {
     current_directory, err := os.Getwd()
     files, err := ioutil.ReadDir(current_directory + nbd_folder)
     if err != nil {
         log.Fatal(err)
     }
     for _, file := range files {
-        send_export_list_item(output, file.Name())
+        send_export_list_item(output, optionSentByClient, file.Name())
     }
 
-    send_ack(output)
+    send_ack(output, optionSentByClient)
 }
 
-func send_message(output *bufio.Writer, reply_type uint32, length uint32, data []byte ) {
+func send_message(output *bufio.Writer, optionSentByClient []byte, reply_type uint32, length uint32, data []byte ) {
     endian := binary.BigEndian
     buffer := make([]byte, 1024)
     offset := 0
@@ -178,7 +178,7 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
     endian.PutUint64(buffer[offset:], utils.NBD_SERVER_SEND_REPLY_MAGIC)
     offset += 8
 
-    endian.PutUint32(buffer[offset:], uint32(3))  // not sure what this is....
+    copy(buffer[offset:], optionSentByClient)
     offset += 4
 
     endian.PutUint32(buffer[offset:], reply_type)  // reply_type: NBD_REP_SERVER
@@ -198,6 +198,8 @@ func send_message(output *bufio.Writer, reply_type uint32, length uint32, data [
 
     utils.LogData("Just sent:", offset, data_to_send)
 }
+
+var defaultOptions = []byte{0, 0}
 
 func main() {
 
@@ -222,10 +224,11 @@ func main() {
 
         output.WriteString("NBDMAGIC")      // init password
         output.WriteString("IHAVEOPT")      // Magic
-        //fmt.printf("arg ")
-        //output.Write([]byte{0, byte(os.Args[3][1])})
+
+        // S: handshake flags
         //output.Write([]byte{0, 3})          // Ubuntu
-        output.Write([]byte{0, 0})        // Qemu
+        output.Write(defaultOptions)        // Qemu
+        // END: S: handshake flags
 
         output.Flush()
 
@@ -254,15 +257,16 @@ func main() {
 
         fmt.Printf("%d packets processed to get %d bytes\n", packet_count, offset)
         utils.LogData("Received from client", offset, data)
-        options := binary.BigEndian.Uint32(data[:4])
+        var optionsSentByClientBytes = data[:4]
+        optionSentByClient := binary.BigEndian.Uint32(optionsSentByClientBytes)
         command := binary.BigEndian.Uint32(data[12:])
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
-        fmt.Printf("Options are: %v\n", options)
-        if (options & utils.NBD_FLAG_FIXED_NEW_STYLE) == utils.NBD_FLAG_FIXED_NEW_STYLE {
+        fmt.Printf("Options are: %v\n", optionSentByClient)
+        if (optionSentByClient & utils.NBD_FLAG_FIXED_NEW_STYLE) == utils.NBD_FLAG_FIXED_NEW_STYLE {
             fmt.Printf("Fixed New Style option requested\n")
         }
         pad_with_zeros := true
-        if (options & utils.NBD_FLAG_NO_ZEROES) == utils.NBD_FLAG_NO_ZEROES {
+        if (optionSentByClient & utils.NBD_FLAG_NO_ZEROES) == utils.NBD_FLAG_NO_ZEROES {
             pad_with_zeros = false
             fmt.Printf("No Zero Padding option requested\n")
         }
@@ -290,7 +294,8 @@ func main() {
         // At this point, we have the command, payload size, and payload.
         switch command {
         case utils.NBD_COMMAND_LIST:
-            send_export_list(output)
+
+            send_export_list(output, optionsSentByClientBytes)
             conn.Close()
             break
         case utils.NBD_COMMAND_EXPORT_NAME:
