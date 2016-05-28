@@ -209,9 +209,12 @@ func main() {
     listener, err := net.Listen("tcp", os.Args[1] + ":" + os.Args[2])
     utils.ErrorCheck(err)
 
-    fmt.Printf("Hello World, we have %v\n", listener)
+    fmt.Printf("ABlox server online\n")
+
     reply_magic := make([]byte, 4)
     binary.BigEndian.PutUint32(reply_magic, utils.NBD_REPLY_MAGIC)
+
+    defer fmt.Printf("End of line\n")
 
     for {
         conn, err := listener.Accept()
