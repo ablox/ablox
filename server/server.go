@@ -81,40 +81,20 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     }
 
     _, err = output.Write(buffer[:offset])
-    //data_out, err := output.Write(buffer[:offset])
-
     output.Flush()
     utils.ErrorCheck(err)
-    //fmt.Printf("Wrote %d chars: %v\n", data_out, buffer[:offset])
 
     buffer = make([]byte, 2048*1024)    // set the buffer to 2mb
     conn_reader := bufio.NewReader(conn)
-    abort := false
     for {
-        offset := 0
         waiting_for := 28       // wait for at least the minimum payload size
-        //fmt.Printf("Sitting at top of export loop.  offset: %d, waiting_for: %d\n", offset, waiting_for)
-// Duplicate
-        for offset < waiting_for {
-            length, err := conn_reader.Read(buffer[offset:waiting_for])
-            offset += length
-            utils.ErrorCheck(err)
-            if err == io.EOF {
-                abort = true
-                break
-            }
-            //utils.LogData("Reading instruction\n", offset, buffer)
-            if offset < waiting_for {
-                time.Sleep(5 * time.Millisecond)
-            }
-        }
-// Duplicate
-        if abort {
+
+        _, err := io.ReadFull(conn_reader, buffer[:waiting_for])
+        if err == io.EOF {
             fmt.Printf("Abort detected, escaping processing loop\n")
             break
         }
-
-        //fmt.Printf("We read the buffer %v\n", buffer[:waiting_for])
+        utils.ErrorCheck(err)
 
         //magic := binary.BigEndian.Uint32(buffer)
         command := binary.BigEndian.Uint32(buffer[4:8])
@@ -131,12 +111,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
         switch command {
         case utils.NBD_COMMAND_READ:
-            //fmt.Printf("We have a request to read. handle: %v, from: %v, length: %v\n", handle, from, length)
-            //fmt.Printf("Read Resquest    Offset:%x length: %v     Handle %X\n", from, length, handle)
             fmt.Printf(".")
-
-            // working on diagnosing qemu connections from localhost to mount to os x nbd
-            //fmt.Printf("len(buffer) %d, length: %d, from %d\n", len(buffer), length, int64(from))
 
             _, err = file.ReadAt(buffer[16:16+length], int64(from))
             utils.ErrorCheck(err)
@@ -144,31 +119,21 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
-            //utils.LogData("About to reply with", int(16+length), buffer)
             conn.Write(buffer[:16+length])
 
             continue
         case utils.NBD_COMMAND_WRITE:
-            //fmt.Printf("We have a request to write. handle: %v, from: %v, length: %v\n", handle, from, length)
             fmt.Printf("W")
 
-            waiting_for += int(length)                   // wait for the additional payload
-
-// Duplicate
-            for offset < waiting_for {
-                length, err := conn_reader.Read(buffer[offset:waiting_for])
-                offset += length
-                utils.ErrorCheck(err)
-                if err == io.EOF {
-                    abort = true
-                    break
-                }
-                //utils.LogData("Reading write data\n", offset, buffer)
-                if offset < waiting_for {
-                    time.Sleep(5 * time.Millisecond)
-                }
+            //waiting_for += int(length)                   // wait for the additional payload
+            //fmt.Printf("About to read the data that we should be writing out.")
+            _, err := io.ReadFull(conn_reader, buffer[28:28+length])
+            if err == io.EOF {
+                fmt.Printf("Abort detected, escaping processing loop\n")
+                break
             }
-// Duplicate
+            utils.ErrorCheck(err)
+            //fmt.Printf("Done reading the data that should be written")
 
             _, err = file.WriteAt(buffer[28:28+length], int64(from))
             utils.ErrorCheck(err)
@@ -179,16 +144,12 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
 
-            //utils.LogData("About to reply with", int(16), buffer)
             conn.Write(buffer[:16])
 
             continue
 
         case utils.NBD_COMMAND_DISCONNECT:
             fmt.Printf("D")
-
-            //fmt.Printf("We have received a request to disconnect\n%d\n", data_out)
-            // close the file and return
 
             file.Sync()
             return
