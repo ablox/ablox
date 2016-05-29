@@ -254,7 +254,7 @@ func main() {
         }
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
 
-        fmt.Sprintf("command is: %d\npayload_size is: %d\n", command, payload_size)
+        fmt.Printf("command is: %d\npayload_size is: %d\n", command, payload_size)
         offset = waiting_for
         waiting_for += int(payload_size)
         _, err = io.ReadFull(conn, data[offset:waiting_for])
@@ -266,7 +266,6 @@ func main() {
         }
 
         utils.LogData("Payload is:", payload_size, payload)
-        fmt.Printf("command is: %v\n", command)
 
         // At this point, we have the command, payload size, and payload.
         switch command {
