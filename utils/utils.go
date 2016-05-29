@@ -4,7 +4,6 @@ package utils
 
 import (
     "fmt"
-    "encoding/binary"
     "os"
 )
 
@@ -35,11 +34,5 @@ func ErrorCheck(err error) {
 
 func LogData(msg string, count int, data []byte) {
     fmt.Printf("%5s (count %3d) Data: '%s' (%v)\n", msg, count, string(data[0:count]), data[0:count])
-}
-
-func EncodeInt(val int) []byte {
-    data := make([]byte, 4)
-    binary.BigEndian.PutUint32(data, uint32(val))
-    return data
 }
 

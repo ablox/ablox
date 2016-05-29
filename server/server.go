@@ -211,7 +211,7 @@ func main() {
     listener, err := net.Listen("tcp", os.Args[1] + ":" + os.Args[2])
     utils.ErrorCheck(err)
 
-    fmt.Printf("ABlox server online\n")
+    fmt.Printf("aBlox server online\n")
 
     reply_magic := make([]byte, 4)
     binary.BigEndian.PutUint32(reply_magic, utils.NBD_REPLY_MAGIC)
