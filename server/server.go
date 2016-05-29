@@ -254,11 +254,6 @@ func main() {
         }
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
 
-        //fmt.Printf("Options are: %v\n", options)
-        //if (options & utils.NBD_FLAG_FIXED_NEW_STYLE) == utils.NBD_FLAG_FIXED_NEW_STYLE {
-        //    fmt.Printf("Fixed New Style option requested\n")
-        //}
-
         fmt.Sprintf("command is: %d\npayload_size is: %d\n", command, payload_size)
         offset = waiting_for
         waiting_for += int(payload_size)
@@ -266,7 +261,6 @@ func main() {
         utils.ErrorCheck(err)
 
         payload := make([]byte, payload_size)
-
         if payload_size > 0 {
             copy(payload, data[20:])
         }
