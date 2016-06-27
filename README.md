@@ -1,4 +1,20 @@
-# nbd
+# ablox
+
+This system is currenly a work in progress. The server side is working and is easy to setup. It currenly only supports the NBD protocol.
+
+To use:
+Clone the project
+
+go run server/server.go hostname port
+- hostname - the hostname or IP address you want to listen on. Hostname can be localhost if you only want it available locally
+- port - The port you want to listen on.
+
+Put any files you want to attach in a subfolder "sample_disks". They are immediately avaiable for all users.
+
+Right now, any users are allowed to accesss any files. File locking is not occuring on the server so you must make sure you only modify the disk from one system. Multiple read-only copies are fine.
+
+Please file issues if you find any problems.
+
 ### Background info
 * https://tour.golang.org/welcome/1
 * http://www.thegeekstuff.com/2009/02/nbd-tutorial-network-block-device-jumpstart-guide/
