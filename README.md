@@ -24,11 +24,21 @@ Please file issues if you find any problems.
 * http://www.microhowto.info/howto/connect_to_a_remote_block_device_using_nbd.html
 
 ### Installation
+
 * Go
 * QEMU
 ```sh
 brew install qemu
 ```
+
+## Setup Docker and Ubuntu under VMWare
+
+sudo su -
+apt-get update
+apt-get install open-ssl openssh-server open-vm-tools apt-transport-https ca-certificates
+
+Follow instructions: https://docs.docker.com/engine/installation/linux/ubuntulinux/
+
 ### Tools
 * Wireshark
 * QEMU
