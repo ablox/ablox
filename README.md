@@ -35,11 +35,16 @@ brew install qemu
 
 sudo su -
 apt-get update
-apt-get install open-ssl openssh-server open-vm-tools apt-transport-https ca-certificates
+apt-get install open-ssl openssh-server open-vm-tools apt-transport-https ca-certificates nbd-client nbd-serverß
 
 Follow instructions: https://docs.docker.com/engine/installation/linux/ubuntulinux/
 
-### Tools
+// to be able to connect to an NBD server, you have to make sure the module is loaded. On starting the OS, run:
+sudo modprobe nbd
+
+
+
+	### Tools
 * Wireshark
 * QEMU
 * Virtualbox
