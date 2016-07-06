@@ -1,5 +1,7 @@
 # ablox
 
+[![Join the chat at https://gitter.im/ablox/ablox](https://badges.gitter.im/ablox/ablox.svg)](https://gitter.im/ablox/ablox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 This system is currenly a work in progress. The server side is working and is easy to setup. It currenly only supports the NBD protocol.
 
 To use:
