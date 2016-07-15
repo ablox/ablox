@@ -5,7 +5,7 @@
 This system is currenly a work in progress. The server side is working and is easy to setup. It currenly only supports the NBD protocol.
 
 To use:
-Clone the project
+Clone the repository
 
 go run server/server.go hostname port
 - hostname - the hostname or IP address you want to listen on. Hostname can be localhost if you only want it available locally
