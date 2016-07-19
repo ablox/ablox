@@ -77,8 +77,9 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     binary.BigEndian.PutUint16(buffer[offset:], 1)  // flags
     offset += 2
 
+    // if requested, padd with 124 zeros
     if (options & utils.NBD_FLAG_NO_ZEROES) != utils.NBD_FLAG_NO_ZEROES {
-        offset += 124               // pad with 124 zeroes
+        offset += 124
     }
 
     _, err = output.Write(buffer[:offset])
@@ -126,15 +127,12 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
         case utils.NBD_COMMAND_WRITE:
             fmt.Printf("W")
 
-            //waiting_for += int(length)                   // wait for the additional payload
-            //fmt.Printf("About to read the data that we should be writing out.")
             _, err := io.ReadFull(conn_reader, buffer[28:28+length])
             if err == io.EOF {
                 fmt.Printf("Abort detected, escaping processing loop\n")
                 break
             }
             utils.ErrorCheck(err)
-            //fmt.Printf("Done reading the data that should be written")
 
             _, err = file.WriteAt(buffer[28:28+length], int64(from))
             utils.ErrorCheck(err)
