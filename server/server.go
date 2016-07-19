@@ -208,22 +208,43 @@ func main() {
     app.Name = "AnyBlox"
     app.Usage = "block storage for the masses"
     app.Action = func(c *cli.Context) error {
-        fmt.Println("boom!")
+        fmt.Println("Please specify either a full 'listen' parameter (e.g. 'localhost:8000', '192.168.1.2:8000) or a host and port\n")
         return nil
+    }
+
+    host := "localhost"
+    port := "8000"
+    listen := ""
+    app.Flags = []cli.Flag {
+        cli.StringFlag{
+            Name: "host",
+            Value: host,
+            Usage: "Hostname or IP address you want to serve traffic on. e.x. 'localhost', '192.168.1.2'",
+            Destination: &host,
+        },
+        cli.StringFlag{
+            Name: "port",
+            Value: port,
+            Usage: "Port you want to serve traffic on. e.x. '8000'",
+            Destination: &port,
+        },
+        cli.StringFlag{
+            Name: "listen, l",
+            Destination: &listen,
+            Usage: "Address and port the server should listen on. Listen will take priority over host and port parameters. hostname:port - e.x. 'localhost:8000', '192.168.1.2:8000'",
+        },
     }
 
     app.Run(os.Args)
 
-
-
-
-
-    if len(os.Args) <  3 {
-        panic("missing arguments:  (ipaddress) (portnumber)")
-        return
+    // Determine where the host should be listening to, depending on the arguments
+    hostingAddress := listen
+    if len(listen) == 0 {
+        hostingAddress = host + ":" + port
     }
 
-    listener, err := net.Listen("tcp", os.Args[1] + ":" + os.Args[2])
+    fmt.Printf("About to listen on %s\n", hostingAddress)
+    listener, err := net.Listen("tcp", hostingAddress)
     utils.ErrorCheck(err)
 
     fmt.Printf("aBlox server online\n")
