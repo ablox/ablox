@@ -264,10 +264,7 @@ func main() {
         output.WriteString("NBDMAGIC")      // init password
         output.WriteString("IHAVEOPT")      // Magic
 
-        // S: handshake flags
-        //output.Write([]byte{0, 3})          // Ubuntu
-        output.Write(defaultOptions)        // Qemu
-        // END: S: handshake flags
+        output.Write(defaultOptions)
 
         output.Flush()
 
