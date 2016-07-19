@@ -14,6 +14,7 @@ import (
     "io"
     "io/ioutil"
     "log"
+    "github.com/urfave/cli"
 )
 
 const nbd_folder = "/sample_disks/"
@@ -202,6 +203,20 @@ func send_message(output *bufio.Writer, options uint32, reply_type uint32, lengt
 var defaultOptions = []byte{0, 0}
 
 func main() {
+
+    app := cli.NewApp()
+    app.Name = "AnyBlox"
+    app.Usage = "block storage for the masses"
+    app.Action = func(c *cli.Context) error {
+        fmt.Println("boom!")
+        return nil
+    }
+
+    app.Run(os.Args)
+
+
+
+
 
     if len(os.Args) <  3 {
         panic("missing arguments:  (ipaddress) (portnumber)")
