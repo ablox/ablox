@@ -23,6 +23,27 @@ var characters_per_line = 100
 var newline = 0
 var line_number = 0
 
+// settings for the server
+type Settings struct {
+    ReadOnly    bool
+    AutoFlush   bool
+    Host        string
+    Port        int32
+    Listen      string
+    File        string
+    Directory   string
+}
+
+var globalSettings Settings = &Settings{
+    ReadOnly: false,
+    AutoFlush: true,
+    Host: "localhost",
+    Port: 8000,
+    Listen: "",
+    File: "",
+    Directory: "sample_disks",
+}
+
 func send_export_list_item(output *bufio.Writer, options uint32, export_name string) {
     data := make([]byte, 1024)
     length := len(export_name)
@@ -44,10 +65,13 @@ func send_ack(output *bufio.Writer, options uint32) {
     send_message(output, options, utils.NBD_COMMAND_ACK, 0, nil)
 }
 
-func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte, options uint32) {
+func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload []byte, options uint32, globalSettings Settings) {
     fmt.Printf("have request to bind to: %s\n", string(payload[:payload_size]))
 
     defer conn.Close()
+
+    //todo add support for folder specifications
+    //todo add support for file specificiation
 
     var filename bytes.Buffer
     current_directory, err := os.Getwd()
@@ -156,7 +180,10 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     }
 }
 
-func send_export_list(output *bufio.Writer, options uint32) {
+func send_export_list(output *bufio.Writer, options uint32, globalSettings Settings) {
+
+    //todo add support for file and directory here
+
     current_directory, err := os.Getwd()
     files, err := ioutil.ReadDir(current_directory + nbd_folder)
     if err != nil {
@@ -210,35 +237,44 @@ func main() {
         return nil
     }
 
-    host := "localhost"
-    port := "8000"
-    listen := ""
     app.Flags = []cli.Flag {
         cli.StringFlag{
             Name: "host",
-            Value: host,
+            Value: globalSettings.Host,
             Usage: "Hostname or IP address you want to serve traffic on. e.x. 'localhost', '192.168.1.2'",
-            Destination: &host,
+            Destination: &globalSettings.Host,
         },
         cli.StringFlag{
             Name: "port",
-            Value: port,
+            Value: globalSettings.Port,
             Usage: "Port you want to serve traffic on. e.x. '8000'",
-            Destination: &port,
+            Destination: &globalSettings.Port,
         },
         cli.StringFlag{
             Name: "listen, l",
-            Destination: &listen,
+            Destination: &globalSettings.Listen,
             Usage: "Address and port the server should listen on. Listen will take priority over host and port parameters. hostname:port - e.x. 'localhost:8000', '192.168.1.2:8000'",
+        },
+        cli.StringFlag{
+            Name: "file, f",
+            Destination: &globalSettings.File,
+            Value: "",
+            Usage: "The file that should be shared by this server. 'file' overrides 'directory'. It is required to be a full absolute path that includes the filename",
+        },
+        cli.StringFlag{
+            Name: "directory, d",
+            Destination: &globalSettings.Directory,
+            Value: globalSettings.Directory,
+            Usage: "Specify a directory where the files to share are located. Default is 'sample_disks",
         },
     }
 
     app.Run(os.Args)
 
     // Determine where the host should be listening to, depending on the arguments
-    hostingAddress := listen
-    if len(listen) == 0 {
-        hostingAddress = host + ":" + port
+    hostingAddress := globalSettings.Listen
+    if len(globalSettings.Listen) == 0 {
+        hostingAddress = globalSettings.Host + ":" + globalSettings.Port
     }
 
     fmt.Printf("About to listen on %s\n", hostingAddress)
@@ -301,11 +337,11 @@ func main() {
         // At this point, we have the command, payload size, and payload.
         switch command {
         case utils.NBD_COMMAND_LIST:
-            send_export_list(output, options)
+            send_export_list(output, options, globalSettings)
             conn.Close()
             break
         case utils.NBD_COMMAND_EXPORT_NAME:
-            go export_name(output, conn, payload_size, payload, options)
+            go export_name(output, conn, payload_size, payload, options, globalSettings)
             break
         }
     }

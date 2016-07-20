@@ -24,6 +24,9 @@ const (
 
     NBD_FLAG_FIXED_NEW_STYLE =          uint32(1)
     NBD_FLAG_NO_ZEROES =                uint32(2)
+
+    // flag for a read only connection
+    NBD_OPT_READ_ONLY =                 uint32(2)
 )
 
 func ErrorCheck(err error) {
