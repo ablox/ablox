@@ -101,7 +101,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     binary.BigEndian.PutUint16(buffer[offset:], 1)  // flags
     offset += 2
 
-    // if requested, padd with 124 zeros
+    // if requested, pad with 124 zeros
     if (options & utils.NBD_FLAG_NO_ZEROES) != utils.NBD_FLAG_NO_ZEROES {
         offset += 124
     }
