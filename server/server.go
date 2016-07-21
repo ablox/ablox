@@ -71,9 +71,11 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     defer conn.Close()
 
     //todo add support for folder specifications
-    //todo add support for file specificiation
+    //todo add support for file specification
 
     var filename bytes.Buffer
+    readOnly := false
+
     current_directory, err := os.Getwd()
     utils.ErrorCheck(err)
     filename.WriteString(current_directory)
@@ -82,7 +84,14 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     fmt.Printf("Opening file: %s\n", filename.String())
 
-    file, err := os.OpenFile(filename.String(), os.O_RDWR, 0644)
+    fileMode := os.O_RDWR
+    if globalSettings.ReadOnly || options && utils.NBD_OPT_READ_ONLY {
+        fmt.Printf("Read Only is set\n")
+        fileMode = os.O_RDONLY
+        readOnly = true
+    }
+
+    file, err := os.OpenFile(filename.String(), fileMode, 0644)
 
     utils.ErrorCheck(err)
     if err != nil {
@@ -149,6 +158,13 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
             continue
         case utils.NBD_COMMAND_WRITE:
+            if readOnly {
+                fmt.Printf("E")
+                fmt.Printf("\nAttempt to write to read only file blocked\n")
+
+                continue
+            }
+
             fmt.Printf("W")
 
             _, err := io.ReadFull(conn_reader, buffer[28:28+length])
