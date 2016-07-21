@@ -182,7 +182,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
 /*
 First check for a specific file. If one is specified, use it. If not, check for a directory. If that is not
-avilable, use the CWD.
+available, use the CWD.
  */
 func send_export_list(output *bufio.Writer, options uint32, globalSettings Settings) {
     if globalSettings.File {
