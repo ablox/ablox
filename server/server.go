@@ -161,7 +161,9 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             _, err = file.WriteAt(buffer[28:28+length], int64(from))
             utils.ErrorCheck(err)
 
-            file.Sync()
+            if globalSettings.AutoFlush {
+                file.Sync()
+            }
 
             // let them know we are done
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
