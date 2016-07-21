@@ -13,8 +13,8 @@ import (
     "bytes"
     "io"
     "io/ioutil"
-    "log"
     "github.com/urfave/cli"
+    "path/filepath"
 )
 
 const nbd_folder = "/sample_disks/"
@@ -185,16 +185,24 @@ First check for a specific file. If one is specified, use it. If not, check for 
 avilable, use the CWD.
  */
 func send_export_list(output *bufio.Writer, options uint32, globalSettings Settings) {
-    //todo add support for file and directory here
-    current_directory, err := os.Getwd()
-    utils.ErrorCheck(err)
+    if globalSettings.File {
+        _, file := filepath.Split(globalSettings.File)
+
+        send_export_list_item(output, options, file)
+        send_ack(output, options)
+        return
+    }
+
+    var current_directory string
+    var err error
+    if globalSettings.Directory == "" {
+        current_directory, err = os.Getwd()
+        utils.ErrorCheck(err)
+    }
 
     files, err := ioutil.ReadDir(current_directory + nbd_folder)
     utils.ErrorCheck(err)
 
-    if err != nil {
-        log.Fatal(err)
-    }
     for _, file := range files {
         send_export_list_item(output, options, file.Name())
     }
