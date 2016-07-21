@@ -76,8 +76,12 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     var filename bytes.Buffer
     readOnly := false
 
-    current_directory, err := os.Getwd()
-    utils.ErrorCheck(err)
+    var current_directory = globalSettings.Directory
+    var err error
+    if current_directory == "" {
+        current_directory, err = os.Getwd()
+        utils.ErrorCheck(err)
+    }
     filename.WriteString(current_directory)
     filename.WriteString(nbd_folder)
     filename.Write(payload[:payload_size])
