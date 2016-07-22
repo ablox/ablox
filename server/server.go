@@ -28,13 +28,13 @@ type Settings struct {
     ReadOnly    bool
     AutoFlush   bool
     Host        string
-    Port        int32
+    Port        int
     Listen      string
     File        string
     Directory   string
 }
 
-var globalSettings Settings = &Settings{
+var globalSettings Settings = Settings {
     ReadOnly: false,
     AutoFlush: true,
     Host: "localhost",
@@ -70,7 +70,6 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     defer conn.Close()
 
-    //todo add support for folder specifications
     //todo add support for file specification
 
     var filename bytes.Buffer
@@ -89,7 +88,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     fmt.Printf("Opening file: %s\n", filename.String())
 
     fileMode := os.O_RDWR
-    if globalSettings.ReadOnly || options && utils.NBD_OPT_READ_ONLY {
+    if globalSettings.ReadOnly || (options & utils.NBD_OPT_READ_ONLY != 0) {
         fmt.Printf("Read Only is set\n")
         fileMode = os.O_RDONLY
         readOnly = true
@@ -207,7 +206,7 @@ First check for a specific file. If one is specified, use it. If not, check for 
 available, use the CWD.
  */
 func send_export_list(output *bufio.Writer, options uint32, globalSettings Settings) {
-    if globalSettings.File {
+    if globalSettings.File != "" {
         _, file := filepath.Split(globalSettings.File)
 
         send_export_list_item(output, options, file)
@@ -280,7 +279,7 @@ func main() {
             Usage: "Hostname or IP address you want to serve traffic on. e.x. 'localhost', '192.168.1.2'",
             Destination: &globalSettings.Host,
         },
-        cli.StringFlag{
+        cli.IntFlag{
             Name: "port",
             Value: globalSettings.Port,
             Usage: "Port you want to serve traffic on. e.x. '8000'",
@@ -308,9 +307,15 @@ func main() {
     app.Run(os.Args)
 
     // Determine where the host should be listening to, depending on the arguments
+    fmt.Printf("listen (%s) host (%s) port (%d)", globalSettings.Listen, globalSettings.Host, globalSettings.Port)
     hostingAddress := globalSettings.Listen
     if len(globalSettings.Listen) == 0 {
-        hostingAddress = globalSettings.Host + ":" + globalSettings.Port
+        if len(globalSettings.Host) == 0 || globalSettings.Port <= 0 {
+            panic("You need to specify a host and port or specify a listen address (host:port)\n")
+        }
+        var port string
+        fmt.Sprint(port, "%d", globalSettings.Port)
+        hostingAddress = globalSettings.Host + ":" + port
     }
 
     fmt.Printf("About to listen on %s\n", hostingAddress)
