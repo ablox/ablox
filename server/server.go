@@ -34,6 +34,46 @@ type Settings struct {
     Directory   string
 }
 
+type Connection struct {
+    File        string
+    RemoteAddr   string
+    ReadOnly    bool
+}
+
+var connections = make(map[string][]Connection)
+
+/*
+    Add a new connection to the list of connections for a file. Make sure there is only one writable connection per filename
+    returns true if the connection was added correctly. false otherwise
+ */
+func addConnection(filename string, readOnly bool, remoteAddr string) bool {
+    currentConnections, ok := connections[filename]
+    if ok == false {
+        currentConnections = make([]Connection, 4)
+    }
+
+    // If this a writable request, check to see if anybody else has a writable connection
+    if !readOnly {
+        for conn := range currentConnections {
+            if !conn.ReadOnly {
+                fmt.Printf("Error, too many writable connections. %s is already connected to %s\n", remoteAddr, filename)
+                return false
+            }
+        }
+    }
+
+    newConnection := Connection{
+        File: filename,
+        RemoteAddr: remoteAddr,
+        ReadOnly: readOnly,
+    }
+
+    connections[filename] = append(currentConnections, newConnection)
+    return true
+}
+
+
+
 var globalSettings Settings = Settings {
     ReadOnly: false,
     AutoFlush: true,
@@ -263,7 +303,6 @@ func send_message(output *bufio.Writer, options uint32, reply_type uint32, lengt
 var defaultOptions = []byte{0, 0}
 
 func main() {
-
     app := cli.NewApp()
     app.Name = "AnyBlox"
     app.Usage = "block storage for the masses"
@@ -307,7 +346,7 @@ func main() {
     app.Run(os.Args)
 
     // Determine where the host should be listening to, depending on the arguments
-    fmt.Printf("listen (%s) host (%s) port (%d)", globalSettings.Listen, globalSettings.Host, globalSettings.Port)
+    fmt.Printf("listen (%s) host (%s) port (%d)\n", globalSettings.Listen, globalSettings.Host, globalSettings.Port)
     hostingAddress := globalSettings.Listen
     if len(globalSettings.Listen) == 0 {
         if len(globalSettings.Host) == 0 || globalSettings.Port <= 0 {
