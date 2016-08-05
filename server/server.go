@@ -162,7 +162,9 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     output.Flush()
     utils.ErrorCheck(err)
 
-    buffer = make([]byte, 2048*1024)    // set the buffer to 2mb
+    buffer_limit := 2048*1024    // set the buffer to 2mb
+
+    buffer = make([]byte, buffer_limit)
     conn_reader := bufio.NewReader(conn)
     for {
         waiting_for := 28       // wait for at least the minimum payload size
@@ -179,6 +181,14 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
         //handle := binary.BigEndian.Uint64(buffer[8:16])
         from := binary.BigEndian.Uint64(buffer[16:24])
         length := binary.BigEndian.Uint32(buffer[24:28])
+
+        // Error out and drop the connection if there is an attempt to read too much
+        if length > buffer_limit {
+            fmt.Printf("E")
+
+            file.Sync()
+            return
+        }
 
         newline += 1;
         if newline % characters_per_line == 0 {
