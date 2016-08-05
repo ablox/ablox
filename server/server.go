@@ -32,6 +32,7 @@ type Settings struct {
     Listen      string
     File        string
     Directory   string
+    BufferLimit int
 }
 
 type Connection struct {
@@ -82,6 +83,7 @@ var globalSettings Settings = Settings {
     Listen: "",
     File: "",
     Directory: "sample_disks",
+    BufferLimit: 2048,
 }
 
 func send_export_list_item(output *bufio.Writer, options uint32, export_name string) {
@@ -162,7 +164,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     output.Flush()
     utils.ErrorCheck(err)
 
-    buffer_limit := 2048*1024    // set the buffer to 2mb
+    buffer_limit := globalSettings.BufferLimit*1024    // set the buffer to 2mb
 
     buffer = make([]byte, buffer_limit)
     conn_reader := bufio.NewReader(conn)
@@ -350,6 +352,12 @@ func main() {
             Destination: &globalSettings.Directory,
             Value: globalSettings.Directory,
             Usage: "Specify a directory where the files to share are located. Default is 'sample_disks",
+        },
+        cli.IntFlag{
+            Name: "buffer",
+            Value: globalSettings.BufferLimit,
+            Usage: "The number of kilobytes in size of the maximum supported read request e.x. '2048'",
+            Destination: &globalSettings.Port,
         },
     }
 
