@@ -36,7 +36,7 @@ type Settings struct {
 
 type Connection struct {
     File        string
-    RemoteAddr   string
+    RemoteAddr  string
     ReadOnly    bool
 }
 
@@ -54,7 +54,7 @@ func addConnection(filename string, readOnly bool, remoteAddr string) bool {
 
     // If this a writable request, check to see if anybody else has a writable connection
     if !readOnly {
-        for conn := range currentConnections {
+        for _, conn := range currentConnections {
             if !conn.ReadOnly {
                 fmt.Printf("Error, too many writable connections. %s is already connected to %s\n", remoteAddr, filename)
                 return false
