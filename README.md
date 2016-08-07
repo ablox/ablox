@@ -8,9 +8,9 @@ To use:
 
 1. Clone the repository
 
-2. From prompt run>  go get github.com/urfave/cli
+2. Run from prompt> go get github.com/urfave/cli
 
-3. go run server/server.go hostname port
+3. Run from prompt> go run server/server.go hostname port
   * hostname - the hostname or IP address you want to listen on. Hostname can be localhost if you only want it available locally
   * port - The port you want to listen on.
 
