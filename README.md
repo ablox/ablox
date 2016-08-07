@@ -11,8 +11,8 @@ To use:
 2. From prompt run>  go get github.com/urfave/cli
 
 3. go run server/server.go hostname port
-- hostname - the hostname or IP address you want to listen on. Hostname can be localhost if you only want it available locally
-- port - The port you want to listen on.
+  * hostname - the hostname or IP address you want to listen on. Hostname can be localhost if you only want it available locally
+  * port - The port you want to listen on.
 
 Put any files you want to attach in a subfolder "sample_disks". They are immediately avaiable for all users.
 
