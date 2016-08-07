@@ -185,7 +185,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
         length := binary.BigEndian.Uint32(buffer[24:28])
 
         // Error out and drop the connection if there is an attempt to read too much
-        if length > buffer_limit {
+        if int(length) > buffer_limit {
             fmt.Printf("E")
 
             file.Sync()
