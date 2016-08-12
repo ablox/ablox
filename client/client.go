@@ -43,53 +43,55 @@ func (r NBDRequest) encodeRequest(data []byte){
 }
 
 func main() {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "jacobu.local:8000")
-	utils.ErrorCheck(err)
-	conn, err := net.Dial("tcp", tcpAddr.String())
-	utils.ErrorCheck(err)
-
-	fmt.Println("We are connectd to: %s\n", tcpAddr.String())
-	reader := bufio.NewReader(conn)
-	writer := bufio.NewWriter(conn)
-
-    data := make([]byte, 1000)
-
-    count, err := reader.Read(data)
-    utils.ErrorCheck(err)
-    utils.LogData("A", count, data)
-
-    fmt.Printf("%s\n", reflect.TypeOf(utils.NBD_REQUEST_MAGIC))
-
-    newline := make([]byte, 1)
-    newline[0] = byte('\n')
-    writer.Write(newline)
-
-    count, err = reader.Read(data)
-    utils.ErrorCheck(err)
-    utils.LogData("B", count, data)
-
-    // send out options and the request for a list
-    count, err = writer.Write([]byte{0, 0, 0, 3, 73, 72, 65, 86, 69, 79, 80, 84})
-    utils.ErrorCheck(err)
-    count, err = writer.Write([]byte{0, 0, 0, 3})
-    writer.Flush()
-    utils.ErrorCheck(err)
-    count, err = writer.Write(newline)
-    writer.Flush()
-    utils.ErrorCheck(err)
-
-    fmt.Printf("Gack")
-    count, err = reader.Read(data)
-    utils.ErrorCheck(err)
-    utils.LogData("B", count, data)
-    fmt.Printf("Gack2")
-
-    os.Exit(0)
-
-	fmt.Println("Starting Now!")
-	http.HandleFunc("/", receive)
-	http.HandleFunc("/start", start)
-	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+    fmt.Printf("Client is temporarily disabled\n")
+    return
+	//tcpAddr, err := net.ResolveTCPAddr("tcp", "jacobu.local:8000")
+	//utils.ErrorCheck(err)
+	//conn, err := net.Dial("tcp", tcpAddr.String())
+	//utils.ErrorCheck(err)
+    //
+	//fmt.Println("We are connectd to: %s\n", tcpAddr.String())
+	//reader := bufio.NewReader(conn)
+	//writer := bufio.NewWriter(conn)
+    //
+    //data := make([]byte, 1000)
+    //
+    //count, err := reader.Read(data)
+    //utils.ErrorCheck(err)
+    //utils.LogData("A", count, data)
+    //
+    //fmt.Printf("%s\n", reflect.TypeOf(utils.NBD_REQUEST_MAGIC))
+    //
+    //newline := make([]byte, 1)
+    //newline[0] = byte('\n')
+    //writer.Write(newline)
+    //
+    //count, err = reader.Read(data)
+    //utils.ErrorCheck(err)
+    //utils.LogData("B", count, data)
+    //
+    //// send out options and the request for a list
+    //count, err = writer.Write([]byte{0, 0, 0, 3, 73, 72, 65, 86, 69, 79, 80, 84})
+    //utils.ErrorCheck(err)
+    //count, err = writer.Write([]byte{0, 0, 0, 3})
+    //writer.Flush()
+    //utils.ErrorCheck(err)
+    //count, err = writer.Write(newline)
+    //writer.Flush()
+    //utils.ErrorCheck(err)
+    //
+    //fmt.Printf("Gack")
+    //count, err = reader.Read(data)
+    //utils.ErrorCheck(err)
+    //utils.LogData("B", count, data)
+    //fmt.Printf("Gack2")
+    //
+    //os.Exit(0)
+    //
+	//fmt.Println("Starting Now!")
+	//http.HandleFunc("/", receive)
+	//http.HandleFunc("/start", start)
+	//log.Fatal(http.ListenAndServe("localhost:8000", nil))
 }
 
 func receive(w http.ResponseWriter, r *http.Request) {
