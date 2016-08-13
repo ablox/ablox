@@ -121,7 +121,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
     var err error
     if current_directory == "" {
         current_directory, err = os.Getwd()
-        utils.ErrorCheck(err)
+        utils.ErrorCheck(err, true)
     }
     filename.WriteString(current_directory)
     filename.WriteString(nbd_folder)
@@ -138,7 +138,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     file, err := os.OpenFile(filename.String(), fileMode, 0644)
 
-    utils.ErrorCheck(err)
+    utils.ErrorCheck(err, false)
     if err != nil {
         return
     }
@@ -162,7 +162,10 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
 
     _, err = output.Write(buffer[:offset])
     output.Flush()
-    utils.ErrorCheck(err)
+    utils.ErrorCheck(err, false)
+    if err != nil {
+        return
+    }
 
     buffer_limit := globalSettings.BufferLimit*1024    // set the buffer to 2mb
 
@@ -176,7 +179,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             fmt.Printf("Abort detected, escaping processing loop\n")
             break
         }
-        utils.ErrorCheck(err)
+        utils.ErrorCheck(err, true)
 
         //magic := binary.BigEndian.Uint32(buffer)
         command := binary.BigEndian.Uint32(buffer[4:8])
@@ -204,7 +207,7 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
             fmt.Printf(".")
 
             _, err = file.ReadAt(buffer[16:16+length], int64(from))
-            utils.ErrorCheck(err)
+            utils.ErrorCheck(err, true)
 
             binary.BigEndian.PutUint32(buffer[:4], utils.NBD_REPLY_MAGIC)
             binary.BigEndian.PutUint32(buffer[4:8], 0)                      // error bits
@@ -227,10 +230,10 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
                 fmt.Printf("Abort detected, escaping processing loop\n")
                 break
             }
-            utils.ErrorCheck(err)
+            utils.ErrorCheck(err, true)
 
             _, err = file.WriteAt(buffer[28:28+length], int64(from))
-            utils.ErrorCheck(err)
+            utils.ErrorCheck(err, true)
 
             if globalSettings.AutoFlush {
                 file.Sync()
@@ -270,11 +273,11 @@ func send_export_list(output *bufio.Writer, options uint32, globalSettings Setti
     var err error
     if globalSettings.Directory == "" {
         current_directory, err = os.Getwd()
-        utils.ErrorCheck(err)
+        utils.ErrorCheck(err, true)
     }
 
     files, err := ioutil.ReadDir(current_directory + nbd_folder)
-    utils.ErrorCheck(err)
+    utils.ErrorCheck(err, true)
 
     for _, file := range files {
         send_export_list_item(output, options, file.Name())
@@ -319,6 +322,17 @@ func main() {
     app.Name = "AnyBlox"
     app.Usage = "block storage for the masses"
     app.Action = func(c *cli.Context) error {
+
+        globalSettings.Host = c.GlobalString("host")
+        globalSettings.Port = c.GlobalInt("port")
+        globalSettings.Host = c.GlobalString("listen")
+        globalSettings.Host = c.GlobalString("file")
+        globalSettings.Host = c.GlobalString("directory")
+        globalSettings.Port = c.GlobalInt("buffer")
+
+        fmt.Println("%", globalSettings)
+
+
         fmt.Println("Please specify either a full 'listen' parameter (e.g. 'localhost:8000', '192.168.1.2:8000) or a host and port\n")
         return nil
     }
@@ -328,28 +342,28 @@ func main() {
             Name: "host",
             Value: globalSettings.Host,
             Usage: "Hostname or IP address you want to serve traffic on. e.x. 'localhost', '192.168.1.2'",
-            Destination: &globalSettings.Host,
+            //Destination: &globalSettings.Host,
         },
         cli.IntFlag{
             Name: "port",
             Value: globalSettings.Port,
             Usage: "Port you want to serve traffic on. e.x. '8000'",
-            Destination: &globalSettings.Port,
+            //Destination: &globalSettings.Port,
         },
         cli.StringFlag{
             Name: "listen, l",
-            Destination: &globalSettings.Listen,
+            //Destination: &globalSettings.Listen,
             Usage: "Address and port the server should listen on. Listen will take priority over host and port parameters. hostname:port - e.x. 'localhost:8000', '192.168.1.2:8000'",
         },
         cli.StringFlag{
             Name: "file, f",
-            Destination: &globalSettings.File,
+            //Destination: &globalSettings.File,
             Value: "",
             Usage: "The file that should be shared by this server. 'file' overrides 'directory'. It is required to be a full absolute path that includes the filename",
         },
         cli.StringFlag{
             Name: "directory, d",
-            Destination: &globalSettings.Directory,
+            //Destination: &globalSettings.Directory,
             Value: globalSettings.Directory,
             Usage: "Specify a directory where the files to share are located. Default is 'sample_disks",
         },
@@ -357,29 +371,35 @@ func main() {
             Name: "buffer",
             Value: globalSettings.BufferLimit,
             Usage: "The number of kilobytes in size of the maximum supported read request e.x. '2048'",
-            Destination: &globalSettings.Port,
+            //Destination: &globalSettings.BufferLimit,
         },
     }
 
     app.Run(os.Args)
 
     // Determine where the host should be listening to, depending on the arguments
-    fmt.Printf("listen (%s) host (%s) port (%d)\n", globalSettings.Listen, globalSettings.Host, globalSettings.Port)
+    fmt.Printf("Parameter Check: listen (%s) host (%s) port (%s)\n", globalSettings.Listen, globalSettings.Host, globalSettings.Port)
     hostingAddress := globalSettings.Listen
     if len(globalSettings.Listen) == 0 {
         if len(globalSettings.Host) == 0 || globalSettings.Port <= 0 {
             panic("You need to specify a host and port or specify a listen address (host:port)\n")
         }
-        var port string
-        fmt.Sprint(port, "%d", globalSettings.Port)
+        //var port string
+        fmt.Printf("the port is: %s\n", globalSettings.Port)
+
+        port := string(globalSettings.Port)
+        //fmt.Sprintf(port, "%d", globalSettings.Port)
+        fmt.Printf("the port is now: %d\n", port)
+
         hostingAddress = globalSettings.Host + ":" + port
+        fmt.Printf("The hosting address is %s, port is %s\n", hostingAddress, port)
     }
 
-    fmt.Printf("About to listen on %s\n", hostingAddress)
+    fmt.Printf("aBlox server online at: %s\n", hostingAddress)
     listener, err := net.Listen("tcp", hostingAddress)
-    utils.ErrorCheck(err)
 
-    fmt.Printf("aBlox server online\n")
+    utils.ErrorCheck(err, true)
+
 
     reply_magic := make([]byte, 4)
     binary.BigEndian.PutUint32(reply_magic, utils.NBD_REPLY_MAGIC)
@@ -388,7 +408,10 @@ func main() {
 
     for {
         conn, err := listener.Accept()
-        utils.ErrorCheck(err)
+        utils.ErrorCheck(err, false)
+        if err != nil {
+            continue
+        }
 
         fmt.Printf("We have a new connection from: %s\n", conn.RemoteAddr())
         output := bufio.NewWriter(conn)
@@ -406,7 +429,10 @@ func main() {
         waiting_for := 16       // wait for at least the minimum payload size
 
         _, err = io.ReadFull(conn, data[:waiting_for])
-        utils.ErrorCheck(err)
+        utils.ErrorCheck(err, false)
+        if err != nil {
+            continue
+        }
 
         options := binary.BigEndian.Uint32(data[:4])
         command := binary.BigEndian.Uint32(data[12:16])
@@ -415,15 +441,20 @@ func main() {
         if binary.BigEndian.Uint32(data[12:]) == utils.NBD_COMMAND_EXPORT_NAME {
             waiting_for += 4
             _, err = io.ReadFull(conn, data[16:20])
-            utils.ErrorCheck(err)
+            utils.ErrorCheck(err, false)
+            if err != nil {
+                continue
+            }
         }
         payload_size := int(binary.BigEndian.Uint32(data[16:]))
 
-        fmt.Printf("command is: %d\npayload_size is: %d\n", command, payload_size)
         offset = waiting_for
         waiting_for += int(payload_size)
         _, err = io.ReadFull(conn, data[offset:waiting_for])
-        utils.ErrorCheck(err)
+        utils.ErrorCheck(err, false)
+        if err != nil {
+            continue
+        }
 
         payload := make([]byte, payload_size)
         if payload_size > 0 {

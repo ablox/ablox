@@ -29,9 +29,12 @@ const (
     NBD_OPT_READ_ONLY =                 uint32(2)
 )
 
-func ErrorCheck(err error) {
+func ErrorCheck(err error, exit bool) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error encountered: %v\n", err)
+        if exit {
+            panic("Ending due to error")
+        }
 	}
 }
 
