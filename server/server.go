@@ -14,6 +14,7 @@ import (
     "io/ioutil"
     "github.com/urfave/cli"
     "path/filepath"
+    "strconv"
 )
 
 const nbd_folder = "/sample_disks/"
@@ -27,11 +28,11 @@ type Settings struct {
     ReadOnly    bool
     AutoFlush   bool
     Host        string
-    Port        int
+    Port        string
     Listen      string
     File        string
     Directory   string
-    BufferLimit int
+    BufferLimit string
 }
 
 type Connection struct {
@@ -78,11 +79,11 @@ var globalSettings Settings = Settings {
     ReadOnly: false,
     AutoFlush: true,
     Host: "localhost",
-    Port: 8000,
+    Port: "8000",
     Listen: "",
     File: "",
     Directory: "sample_disks",
-    BufferLimit: 2048,
+    BufferLimit: "2048",
 }
 
 func send_export_list_item(output *bufio.Writer, options uint32, export_name string) {
@@ -166,7 +167,8 @@ func export_name(output *bufio.Writer, conn net.Conn, payload_size int, payload 
         return
     }
 
-    buffer_limit := globalSettings.BufferLimit*1024    // set the buffer to 2mb
+    buffer_limit, _ := strconv.Atoi(globalSettings.BufferLimit)
+    buffer_limit *= 1024    // set the buffer to 2mb
 
     buffer = make([]byte, buffer_limit)
     conn_reader := bufio.NewReader(conn)
@@ -321,18 +323,16 @@ func main() {
     app.Name = "AnyBlox"
     app.Usage = "block storage for the masses"
     app.Action = func(c *cli.Context) error {
-
         globalSettings.Host = c.GlobalString("host")
-        globalSettings.Port = c.GlobalInt("port")
-        globalSettings.Host = c.GlobalString("listen")
-        globalSettings.Host = c.GlobalString("file")
-        globalSettings.Host = c.GlobalString("directory")
-        globalSettings.Port = c.GlobalInt("buffer")
+        globalSettings.Port = c.GlobalString("port")
+        globalSettings.Listen = c.GlobalString("listen")
+        globalSettings.File = c.GlobalString("file")
+        globalSettings.Directory = c.GlobalString("directory")
+        globalSettings.BufferLimit = c.GlobalString("buffer")
 
-        fmt.Println("%", globalSettings)
-
-
-        fmt.Println("Please specify either a full 'listen' parameter (e.g. 'localhost:8000', '192.168.1.2:8000) or a host and port\n")
+        if globalSettings.Listen == "" && (globalSettings.Host == "" || globalSettings.Port == "") {
+            fmt.Println("Please specify either a full 'listen' parameter (e.g. 'localhost:8000', '192.168.1.2:8000) or a host and port\n")
+        }
         return nil
     }
 
@@ -343,7 +343,7 @@ func main() {
             Usage: "Hostname or IP address you want to serve traffic on. e.x. 'localhost', '192.168.1.2'",
             //Destination: &globalSettings.Host,
         },
-        cli.IntFlag{
+        cli.StringFlag{
             Name: "port",
             Value: globalSettings.Port,
             Usage: "Port you want to serve traffic on. e.x. '8000'",
@@ -366,7 +366,7 @@ func main() {
             Value: globalSettings.Directory,
             Usage: "Specify a directory where the files to share are located. Default is 'sample_disks",
         },
-        cli.IntFlag{
+        cli.StringFlag{
             Name: "buffer",
             Value: globalSettings.BufferLimit,
             Usage: "The number of kilobytes in size of the maximum supported read request e.x. '2048'",
@@ -380,10 +380,9 @@ func main() {
     fmt.Printf("Parameter Check: listen (%s) host (%s) port (%s)\n", globalSettings.Listen, globalSettings.Host, globalSettings.Port)
     hostingAddress := globalSettings.Listen
     if len(globalSettings.Listen) == 0 {
-        if len(globalSettings.Host) == 0 || globalSettings.Port <= 0 {
+        if len(globalSettings.Host) == 0 || len(globalSettings.Port) == 0 {
             panic("You need to specify a host and port or specify a listen address (host:port)\n")
         }
-        //var port string
         fmt.Printf("the port is: %s\n", globalSettings.Port)
 
         port := string(globalSettings.Port)
